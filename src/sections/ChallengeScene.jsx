@@ -309,7 +309,12 @@ export default function ChallengeScene() {
     const onWheel = (e) => {
       const rect = el.getBoundingClientRect()
       const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
-      if (!inSticky) return
+      if (!inSticky) {
+        // Reset accumulator while outside sticky zone so pre-section
+        // trackpad momentum never carries into the first scene advance.
+        accumRef.current = 0
+        return
+      }
 
       const current = sceneIdxRef.current
 
