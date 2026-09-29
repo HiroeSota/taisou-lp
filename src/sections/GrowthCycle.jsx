@@ -1,152 +1,336 @@
 import { useRef, useEffect, useState } from 'react'
 
-const steps = [
-  { id: 0, label: '自分で選ぶ',   angle: 0,   color: '#FF9F1C' },
-  { id: 1, label: '挑戦する',     angle: 40,  color: '#f09010' },
-  { id: 2, label: '失敗する',     angle: 80,  color: '#d07a00' },
-  { id: 3, label: '身体で感じる', angle: 120, color: '#b06000' },
-  { id: 4, label: '自分で考える', angle: 160, color: '#1a1a2e' },
-  { id: 5, label: '試してみる',   angle: 200, color: '#1a2a4e' },
-  { id: 6, label: '修正する',     angle: 240, color: '#1a3a6e' },
-  { id: 7, label: 'できる！',     angle: 280, color: '#FFC928' },
-  { id: 8, label: '自分で再現',   angle: 320, color: '#e0b010' },
+const STEPS = [
+  {
+    num: '01',
+    label: '自分で選ぶ',
+    sub: null,
+    delay: 0,
+    anim: 'gc-fade',
+  },
+  {
+    num: '02',
+    label: '挑戦する',
+    sub: null,
+    delay: 0.12,
+    anim: 'gc-forward',
+  },
+  {
+    num: '03',
+    label: '失敗する',
+    sub: null,
+    delay: 0.24,
+    anim: 'gc-tilt',
+  },
+  {
+    num: '04',
+    label: '考える・試す',
+    sub: ['身体で感じる', '自分で考える', '試してみる', '修正する'],
+    delay: 0.38,
+    anim: 'gc-rise',
+  },
+  {
+    num: '05',
+    label: 'できる！',
+    sub: null,
+    delay: 0.54,
+    anim: 'gc-bounce',
+    highlight: true,
+  },
+  {
+    num: '06',
+    label: '自分で再現する',
+    sub: null,
+    delay: 0.70,
+    anim: 'gc-stable',
+  },
 ]
 
-function polarToXY(angleDeg, r, cx, cy) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
-}
-
 export default function GrowthCycle() {
-  const [active, setActive] = useState(null)
   const [visible, setVisible] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setVisible(true) },
-      { threshold: 0.25 }
+      { threshold: 0.15 }
     )
     if (ref.current) observer.observe(ref.current)
     return () => observer.disconnect()
   }, [])
 
-  const CX = 200, CY = 200, R = 130, size = 400
-
   return (
     <section className="py-24 md:py-32 bg-[#1a1a2e] px-6 overflow-hidden">
+      <style>{`
+        @keyframes gc-fade {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes gc-forward {
+          from { opacity: 0; transform: translateX(-14px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes gc-tilt {
+          from { opacity: 0; transform: rotate(4deg) translateY(8px); }
+          to   { opacity: 1; transform: rotate(0deg) translateY(0); }
+        }
+        @keyframes gc-rise {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes gc-bounce {
+          0%   { opacity: 0; transform: scale(0.82) translateY(10px); }
+          58%  { opacity: 1; transform: scale(1.08) translateY(-5px); }
+          78%  { transform: scale(0.96) translateY(2px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes gc-stable {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes gc-loop-fade {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes gc-arrow-pulse {
+          0%, 100% { opacity: 0.5; transform: translateX(0); }
+          50%       { opacity: 1;   transform: translateX(-3px); }
+        }
+      `}</style>
+
       <div className="max-w-5xl mx-auto">
-        <div className="reveal text-center mb-12">
+        {/* Heading */}
+        <div className="reveal text-center mb-16">
           <p className="text-[#FF9F1C] text-xs tracking-[0.3em] uppercase mb-5">成長の循環</p>
           <h2
-            className="font-bold text-white leading-tight mb-4"
+            className="font-bold text-white leading-tight"
             style={{ fontSize: 'clamp(1.6rem, 4vw, 2.8rem)' }}
           >
             何度も回るほど、
             <br />
             <span className="text-[#FF9F1C]">深く「できる」が育っていく。</span>
           </h2>
-          <p className="text-white/35 text-base max-w-sm mx-auto">
-            各ステップをタップ・ホバーして確認できます
-          </p>
         </div>
 
-        <div ref={ref} className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-          {/* SVG circle */}
-          <div className="relative shrink-0 mx-auto" style={{ width: size, height: size, maxWidth: '90vw' }}>
-            <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%" style={{ overflow: 'visible' }}>
-              <circle cx={CX} cy={CY} r={R} fill="none" stroke="white" strokeOpacity="0.05" strokeWidth="1" />
-
-              {steps.map((step, i) => {
-                const next = steps[(i + 1) % steps.length]
-                const from = polarToXY(step.angle, R, CX, CY)
-                const to   = polarToXY(next.angle, R, CX, CY)
-                const mid  = polarToXY((step.angle + next.angle) / 2, R * 1.08, CX, CY)
-                return (
-                  <path key={`arc-${i}`}
-                    d={`M ${from.x} ${from.y} Q ${mid.x} ${mid.y} ${to.x} ${to.y}`}
-                    fill="none" stroke="white" strokeOpacity="0.10" strokeWidth="1.5" />
-                )
-              })}
-
-              <defs>
-                <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 Z" fill="#FF9F1C" opacity="0.7" />
-                </marker>
-              </defs>
-              <path d="M 200 72 L 200 52" fill="none" stroke="#FF9F1C" strokeOpacity="0.7" strokeWidth="2"
-                markerEnd="url(#arrowOrange)" />
-
-              <text x={CX} y={CY - 8}  textAnchor="middle" fill="white" fontSize="11" opacity="0.3" fontFamily="sans-serif">「次は、</text>
-              <text x={CX} y={CY + 8}  textAnchor="middle" fill="white" fontSize="11" opacity="0.3" fontFamily="sans-serif">何ができる</text>
-              <text x={CX} y={CY + 24} textAnchor="middle" fill="white" fontSize="11" opacity="0.3" fontFamily="sans-serif">ようになりたい？」</text>
-
-              {steps.map((step, i) => {
-                const { x, y } = polarToXY(step.angle, R, CX, CY)
-                const isActive  = active === i
-                const labelPos  = polarToXY(step.angle, R + 38, CX, CY)
-                const labelAnchor = x < CX - 8 ? 'end' : x > CX + 8 ? 'start' : 'middle'
-
-                return (
-                  <g key={step.id}
-                    style={{ cursor: 'pointer', opacity: visible ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.08}s` }}
-                    onMouseEnter={() => setActive(i)}
-                    onMouseLeave={() => setActive(null)}
-                    onClick={() => setActive(isActive ? null : i)}
+        <div ref={ref}>
+          {/* ── PC: horizontal flow ── */}
+          <div className="hidden md:block">
+            <div className="flex items-start justify-between">
+              {STEPS.map((step, i) => (
+                <div key={step.num} className="flex items-start">
+                  {/* Step card */}
+                  <div
+                    className="flex flex-col items-center text-center"
+                    style={{
+                      width: '130px',
+                      opacity: 0,
+                      ...(visible && {
+                        animation: `${step.anim} 0.7s cubic-bezier(0.34,1.1,0.64,1) ${step.delay + 0.15}s both`,
+                      }),
+                    }}
                   >
-                    <circle cx={x} cy={y}
-                      r={isActive ? 14 : 10}
-                      fill={isActive ? step.color : '#1a1a2e'}
-                      stroke={step.color}
-                      strokeWidth={isActive ? 0 : 2}
-                      style={{ transition: 'r 0.2s ease, fill 0.2s ease' }}
-                    />
-                    {step.id === 7 && (
-                      <circle cx={x} cy={y} r={17} fill="none" stroke="#FFC928" strokeWidth="1" strokeOpacity="0.4">
-                        <animate attributeName="r" values="15;22;15" dur="2s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
-                      </circle>
-                    )}
-                    <text x={labelPos.x} y={labelPos.y + 4}
-                      textAnchor={labelAnchor}
-                      fill={isActive ? '#FF9F1C' : 'white'} fillOpacity={isActive ? 1 : 0.55}
-                      fontSize="11" fontWeight={isActive ? 'bold' : 'normal'} fontFamily="sans-serif"
-                      style={{ transition: 'fill 0.2s ease' }}
+                    <span
+                      className="text-[10px] font-bold tracking-[0.2em] mb-2"
+                      style={{ color: step.highlight ? '#FF9F1C' : 'rgba(255,255,255,0.22)' }}
+                    >
+                      {step.num}
+                    </span>
+
+                    {/* Icon circle */}
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center mb-3"
+                      style={
+                        step.highlight
+                          ? { background: '#FF9F1C', boxShadow: '0 0 24px rgba(255,159,28,0.35)' }
+                          : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }
+                      }
+                    >
+                      <span style={{ fontSize: step.highlight ? '18px' : '11px', color: step.highlight ? 'white' : 'rgba(255,255,255,0.35)', fontWeight: 700 }}>
+                        {step.highlight ? '★' : step.num}
+                      </span>
+                    </div>
+
+                    <p
+                      className="font-bold leading-snug"
+                      style={{
+                        fontSize: step.highlight ? '1.05rem' : '0.9rem',
+                        color: step.highlight ? '#FF9F1C' : 'white',
+                      }}
                     >
                       {step.label}
-                    </text>
-                  </g>
-                )
-              })}
-            </svg>
-          </div>
+                    </p>
 
-          {/* step list */}
-          <div className="flex-1 text-center lg:text-left">
-            <div className="flex flex-col gap-3.5">
-              {steps.map((step, i) => (
-                <div key={i}
-                  className={`flex items-center gap-3 cursor-pointer transition-opacity duration-200 ${active !== null && active !== i ? 'opacity-25' : 'opacity-100'}`}
-                  onMouseEnter={() => setActive(i)}
-                  onMouseLeave={() => setActive(null)}
-                >
-                  <div className="w-2 h-2 rounded-full shrink-0 transition-transform duration-200"
-                    style={{ backgroundColor: step.color, transform: active === i ? 'scale(1.6)' : 'scale(1)' }} />
-                  <p className={`text-sm font-medium transition-colors duration-200 ${active === i ? 'text-[#FF9F1C]' : 'text-white/55'}`}>
-                    {step.label}
-                  </p>
+                    {step.sub && (
+                      <p className="text-[9px] leading-relaxed mt-2" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                        {step.sub.join('\n→ ')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Arrow connector */}
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className="flex-shrink-0 self-center mt-5 mx-0.5"
+                      style={{
+                        opacity: 0,
+                        ...(visible && {
+                          animation: `gc-fade 0.4s ease ${step.delay + 0.4}s both`,
+                        }),
+                      }}
+                    >
+                      <svg width="22" height="10" viewBox="0 0 22 10" fill="none">
+                        <path
+                          d="M0 5 H16 M12 1.5 L19.5 5 L12 8.5"
+                          stroke="white"
+                          strokeOpacity="0.18"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               ))}
-              <div className="flex items-center gap-3 mt-2">
-                <div className="w-2 h-2 rounded-full bg-[#FF9F1C] shrink-0" />
-                <p className="text-sm font-bold text-[#FF9F1C]">次の挑戦へ →</p>
+            </div>
+
+            {/* Loop back arc */}
+            <div
+              className="relative mt-1 mx-10"
+              style={{
+                opacity: 0,
+                ...(visible && {
+                  animation: 'gc-loop-fade 0.6s ease 1.05s both',
+                }),
+              }}
+            >
+              {/* U-shape border */}
+              <div
+                className="h-8 rounded-b-2xl"
+                style={{
+                  border: '1px dashed rgba(255,159,28,0.22)',
+                  borderTop: 'none',
+                }}
+              />
+              {/* Loop label centered at bottom */}
+              <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 flex items-center gap-1.5 px-3 py-0.5"
+                style={{ background: '#1a1a2e' }}>
+                <span
+                  style={{
+                    color: '#FF9F1C',
+                    opacity: 0.55,
+                    fontSize: '11px',
+                    animation: visible ? 'gc-arrow-pulse 2.2s ease-in-out 1.6s infinite' : 'none',
+                  }}
+                >
+                  ↺
+                </span>
+                <span className="text-[11px] tracking-wide" style={{ color: 'rgba(255,159,28,0.45)' }}>
+                  次の挑戦へ
+                </span>
               </div>
+            </div>
+          </div>
+
+          {/* ── Mobile: vertical flow ── */}
+          <div className="md:hidden flex flex-col items-center">
+            {STEPS.map((step, i) => (
+              <div key={step.num} className="flex flex-col items-center w-full max-w-xs">
+                {/* Step row */}
+                <div
+                  className="flex items-center gap-4 w-full py-2"
+                  style={{
+                    opacity: 0,
+                    ...(visible && {
+                      animation: `${step.anim} 0.65s cubic-bezier(0.34,1.1,0.64,1) ${step.delay + 0.15}s both`,
+                    }),
+                  }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center"
+                    style={
+                      step.highlight
+                        ? { background: '#FF9F1C', boxShadow: '0 0 20px rgba(255,159,28,0.3)' }
+                        : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }
+                    }
+                  >
+                    <span
+                      style={{
+                        fontSize: step.highlight ? '16px' : '10px',
+                        color: step.highlight ? 'white' : 'rgba(255,255,255,0.35)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {step.highlight ? '★' : step.num}
+                    </span>
+                  </div>
+                  <div>
+                    <p
+                      className="font-bold"
+                      style={{
+                        fontSize: step.highlight ? '1.05rem' : '1rem',
+                        color: step.highlight ? '#FF9F1C' : 'white',
+                      }}
+                    >
+                      {step.label}
+                    </p>
+                    {step.sub && (
+                      <p className="text-[11px] leading-relaxed mt-0.5"
+                        style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        {step.sub.join(' → ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Down connector */}
+                {i < STEPS.length - 1 && (
+                  <div className="py-1" style={{ color: 'rgba(255,255,255,0.15)', fontSize: '18px' }}>↓</div>
+                )}
+              </div>
+            ))}
+
+            {/* Mobile loop indicator */}
+            <div
+              className="mt-5 flex flex-col items-center"
+              style={{
+                opacity: 0,
+                ...(visible && {
+                  animation: 'gc-loop-fade 0.5s ease 1.1s both',
+                }),
+              }}
+            >
+              <div style={{ color: 'rgba(255,255,255,0.15)', fontSize: '18px' }}>↓</div>
+              <div
+                className="mt-2 flex items-center gap-2 px-5 py-2 rounded-full"
+                style={{ border: '1px dashed rgba(255,159,28,0.3)' }}
+              >
+                <span
+                  style={{
+                    color: '#FF9F1C',
+                    opacity: 0.6,
+                    fontSize: '14px',
+                    animation: visible ? 'gc-arrow-pulse 2.2s ease-in-out 1.6s infinite' : 'none',
+                  }}
+                >
+                  ↺
+                </span>
+                <span className="text-sm font-bold" style={{ color: 'rgba(255,159,28,0.55)' }}>
+                  次の挑戦へ
+                </span>
+              </div>
+              <p className="mt-2 text-xs tracking-wide" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                また「自分で選ぶ」へ戻る
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="reveal reveal-delay-3 mt-16 text-center">
-          <p className="text-white/25 text-sm mb-3">この循環を何度も重ねるほど</p>
+        {/* Bottom message */}
+        <div className="reveal reveal-delay-3 mt-20 text-center">
+          <p className="text-sm mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            この循環を何度も重ねるほど
+          </p>
           <p className="text-white font-bold" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.8rem)' }}>
             「できる」の質が上がり、
             <span className="text-[#FF9F1C]">自分への信頼が積み重なる。</span>
