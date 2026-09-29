@@ -1,15 +1,26 @@
 import { useRef, useEffect, useState } from 'react'
 
+// ─────────────────────────────────────────────
+// Scene data
+// To swap in real photos: set photoSrc to the image path, e.g. '/images/step01.jpg'
+// ─────────────────────────────────────────────
 const SCENES = [
   {
     idx: 0,
     word: 'やってみたい。',
     sub: '最初の一歩。',
     note: '先生は答えを教えない。あなたの「やりたい」から全てが始まる。',
-    bg: '#ffffff',
+    bg: '#f8f5f0',
     textColor: '#1a1a2e',
     accent: '#FF9F1C',
     type: 'start',
+    // Set photoSrc to '/images/step01.jpg' etc. when real photos are ready
+    photoSrc: null,
+    photoAlt: '跳び箱を前に、興味津々に見つめる子どもの写真',
+    photoFilter: 'brightness(1.0) saturate(0.9)',
+    photoPlaceholderBg: 'linear-gradient(170deg, #d4c8b8 0%, #b8aa98 60%, #a09080 100%)',
+    // Semi-transparent scene-color overlay keeps text readable over the photo
+    readabilityOverlay: 'rgba(248,245,240,0.70)',
   },
   {
     idx: 1,
@@ -20,6 +31,11 @@ const SCENES = [
     textColor: '#ffffff',
     accent: '#FF9F1C',
     type: 'struggle',
+    photoSrc: null,
+    photoAlt: 'うまくいかず、試行錯誤している写真',
+    photoFilter: 'brightness(0.65) saturate(0.8)',
+    photoPlaceholderBg: 'linear-gradient(170deg, #28283e 0%, #1a1a30 60%, #101020 100%)',
+    readabilityOverlay: 'rgba(26,26,46,0.72)',
   },
   {
     idx: 2,
@@ -30,6 +46,11 @@ const SCENES = [
     textColor: '#1a1a2e',
     accent: '#FFC928',
     type: 'think',
+    photoSrc: null,
+    photoAlt: '先生と一緒に考えている写真',
+    photoFilter: 'brightness(0.92) saturate(0.85)',
+    photoPlaceholderBg: 'linear-gradient(170deg, #e0d4bc 0%, #c8bc9e 60%, #b4a888 100%)',
+    readabilityOverlay: 'rgba(255,252,245,0.70)',
   },
   {
     idx: 3,
@@ -40,6 +61,11 @@ const SCENES = [
     textColor: '#1a1a2e',
     accent: '#FF9F1C',
     type: 'retry',
+    photoSrc: null,
+    photoAlt: '再挑戦している、前向きな様子の写真',
+    photoFilter: 'brightness(1.0) saturate(1.0)',
+    photoPlaceholderBg: 'linear-gradient(170deg, #d8d0c4 0%, #c0b4a4 60%, #ac9e8c 100%)',
+    readabilityOverlay: 'rgba(255,255,255,0.70)',
   },
   {
     idx: 4,
@@ -50,6 +76,11 @@ const SCENES = [
     textColor: '#1a1a2e',
     accent: '#1a1a2e',
     type: 'celebrate',
+    photoSrc: null,
+    photoAlt: '技が成功して全力で喜んでいる写真',
+    photoFilter: 'brightness(1.05) saturate(1.1)',
+    photoPlaceholderBg: 'linear-gradient(170deg, #f0c800 0%, #ffe040 60%, #ffe870 100%)',
+    readabilityOverlay: 'rgba(255,201,40,0.65)',
   },
 ]
 
@@ -80,214 +111,177 @@ const CONFETTI = [
   [86, 0.14, '#FFC928', 8,  620, 1],
 ]
 
-// Threshold (px) of accumulated wheel delta before advancing one step
 const WHEEL_THRESHOLD = 100
-// Lock duration (ms) after a step change — ignores further input during this period
 const LOCK_DURATION = 850
 
-function Figure({ type, accent }) {
-  const sw = { strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
-  const col = type === 'struggle' ? '#ffffff' : type === 'celebrate' ? '#1a1a2e' : accent
-
-  return (
-    <svg
-      width="72"
-      height="110"
-      viewBox="0 0 72 110"
-      aria-hidden="true"
-      style={{
-        transition: 'transform 0.4s ease',
-        transform:
-          type === 'struggle'
-            ? 'rotate(22deg)'
-            : type === 'retry'
-            ? 'rotate(-10deg)'
-            : 'none',
-        transformOrigin: 'center 90px',
-      }}
-    >
-      <circle cx="36" cy="16" r="10" stroke={col} {...sw} />
-      <line x1="36" y1="26" x2="36" y2="62" stroke={col} {...sw} />
-      {type === 'celebrate' ? (
-        <>
-          <line x1="36" y1="40" x2="14" y2="22" stroke={col} {...sw} />
-          <line x1="36" y1="40" x2="58" y2="22" stroke={col} {...sw} />
-        </>
-      ) : type === 'think' ? (
-        <>
-          <line x1="36" y1="40" x2="18" y2="52" stroke={col} {...sw} />
-          <line x1="18" y1="52" x2="12" y2="44" stroke={col} {...sw} />
-          <line x1="36" y1="40" x2="54" y2="52" stroke={col} {...sw} />
-        </>
-      ) : (
-        <>
-          <line x1="36" y1="40" x2="16" y2="54" stroke={col} {...sw} />
-          <line x1="36" y1="40" x2="56" y2="54" stroke={col} {...sw} />
-        </>
-      )}
-      {type === 'retry' ? (
-        <>
-          <line x1="36" y1="62" x2="50" y2="86" stroke={col} {...sw} />
-          <line x1="36" y1="62" x2="24" y2="84" stroke={col} {...sw} />
-          <line x1="24" y1="84" x2="16" y2="96" stroke={col} {...sw} />
-        </>
-      ) : (
-        <>
-          <line x1="36" y1="62" x2="24" y2="90" stroke={col} {...sw} />
-          <line x1="36" y1="62" x2="48" y2="90" stroke={col} {...sw} />
-        </>
-      )}
-    </svg>
-  )
-}
-
+// ─────────────────────────────────────────────
+// Scene content
+// Layout mirrors the original (step number ~30% from top, text in lower half)
+// Background is photo (or placeholder gradient) + readability overlay
+// ─────────────────────────────────────────────
 function SceneContent({ scene }) {
   return (
-    <div
-      key={scene.idx}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        animation: 'fadeIn 0.35s ease both',
-      }}
-    >
-      <p
-        className="scene-anim"
-        style={{
-          color: scene.accent,
-          fontSize: '11px',
-          letterSpacing: '0.3em',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          marginBottom: '32px',
-          animation: 'wordUp 0.4s ease 0.05s both',
-          opacity: 0,
-        }}
-      >
-        {String(scene.idx + 1).padStart(2, '0')} / 05
-      </p>
+    <div style={{ position: 'absolute', inset: 0, animation: 'fadeIn 0.3s ease both' }}>
 
-      <div
-        className="scene-anim"
-        style={{
-          marginBottom: '20px',
-          animation:
-            scene.type === 'think'
-              ? 'wordUp 0.5s ease 0.05s both'
-              : 'bounceIn 0.6s ease 0.05s both',
-          opacity: 0,
-        }}
-      >
-        <Figure type={scene.type} accent={scene.accent} />
+      {/* ── Background layer ── */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+        {scene.photoSrc ? (
+          <img
+            src={scene.photoSrc}
+            alt={scene.photoAlt}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              filter: scene.photoFilter || 'none',
+              display: 'block',
+            }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: scene.photoPlaceholderBg }} />
+        )}
+        {/* Semi-transparent overlay — keeps text readable, photo visible behind */}
+        <div
+          aria-hidden="true"
+          style={{ position: 'absolute', inset: 0, background: scene.readabilityOverlay }}
+        />
       </div>
 
+      {/* ── Content layer ── */}
       <div
-        className="scene-anim"
         style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 5,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           textAlign: 'center',
-          animation:
-            scene.type === 'celebrate'
-              ? 'bounceIn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both'
-              : scene.type === 'struggle'
-              ? 'wordUp 0.4s ease 0.1s both, shake 0.55s ease 0.55s both'
-              : 'wordUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both',
-          opacity: 0,
+          padding: '0 24px',
         }}
       >
-        <h2
+        {/* Top spacer — positions step number at ~28% from top (matches original) */}
+        <div style={{ height: '28vh', flexShrink: 0 }} />
+
+        {/* Step number */}
+        <p
           style={{
-            color: scene.textColor,
-            fontWeight: 900,
-            lineHeight: 1.1,
-            fontSize: 'clamp(2.6rem, 9vw, 7rem)',
-            letterSpacing: '-0.02em',
+            color: scene.accent,
+            fontSize: '11px',
+            letterSpacing: '0.3em',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            animation: 'wordUp 0.4s ease 0.05s both',
+            opacity: 0,
             margin: 0,
           }}
         >
-          {scene.word}
-        </h2>
-      </div>
+          {String(scene.idx + 1).padStart(2, '0')} / 05
+        </p>
 
-      {scene.type === 'think' && (
+        {/* Middle spacer — space where the figure used to be */}
+        <div style={{ height: '14vh', flexShrink: 0 }} />
+
+        {/* Main word */}
         <div
-          className="scene-anim"
           style={{
-            display: 'flex',
-            gap: '10px',
-            marginTop: '20px',
-            animation: 'fadeIn 0.4s ease 0.5s both',
+            animation:
+              scene.type === 'celebrate'
+                ? 'bounceIn 0.65s cubic-bezier(0.34,1.56,0.64,1) 0.1s both'
+                : scene.type === 'struggle'
+                ? 'wordUp 0.4s ease 0.1s both, shake 0.55s ease 0.55s both'
+                : 'wordUp 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.1s both',
             opacity: 0,
+            marginBottom: '16px',
           }}
         >
-          <div className="think-dot-1" style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }} />
-          <div className="think-dot-2" style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }} />
-          <div className="think-dot-3" style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }} />
+          <h2
+            style={{
+              color: scene.textColor,
+              fontWeight: 900,
+              lineHeight: 1.05,
+              fontSize: 'clamp(2.6rem, 9vw, 7rem)',
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}
+          >
+            {scene.word}
+          </h2>
         </div>
-      )}
 
-      <p
-        className="scene-anim"
-        style={{
-          color: scene.textColor,
-          opacity: 0,
-          fontSize: 'clamp(0.85rem, 2.5vw, 1.1rem)',
-          marginTop: '24px',
-          textAlign: 'center',
-          maxWidth: '420px',
-          lineHeight: 1.6,
-          animation: 'wordUp 0.5s ease 0.3s both',
-        }}
-      >
-        {scene.sub}
-      </p>
+        {/* Thinking dots — scene 03 only */}
+        {scene.type === 'think' && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '10px',
+              marginBottom: '12px',
+              animation: 'fadeIn 0.4s ease 0.5s both',
+              opacity: 0,
+            }}
+          >
+            <div className="think-dot-1" style={{ width: 9, height: 9, borderRadius: '50%', background: '#FFC928' }} />
+            <div className="think-dot-2" style={{ width: 9, height: 9, borderRadius: '50%', background: '#FFC928' }} />
+            <div className="think-dot-3" style={{ width: 9, height: 9, borderRadius: '50%', background: '#FFC928' }} />
+          </div>
+        )}
 
-      <p
-        className="scene-anim"
-        style={{
-          color: scene.textColor,
-          opacity: 0,
-          fontSize: 'clamp(0.7rem, 1.8vw, 0.85rem)',
-          marginTop: '12px',
-          textAlign: 'center',
-          maxWidth: '380px',
-          lineHeight: 1.7,
-          animation: 'fadeIn 0.6s ease 0.5s both',
-          fontStyle: 'italic',
-        }}
-      >
-        {scene.note}
-      </p>
+        {/* Sub text */}
+        <p
+          style={{
+            color: scene.textColor,
+            opacity: 0,
+            fontSize: 'clamp(0.88rem, 2.5vw, 1.1rem)',
+            maxWidth: '420px',
+            lineHeight: 1.6,
+            animation: 'wordUp 0.5s ease 0.3s both',
+            marginBottom: '10px',
+          }}
+        >
+          {scene.sub}
+        </p>
+
+        {/* Note */}
+        <p
+          style={{
+            color: scene.textColor,
+            opacity: 0,
+            fontSize: 'clamp(0.72rem, 1.8vw, 0.88rem)',
+            maxWidth: '360px',
+            lineHeight: 1.7,
+            animation: 'fadeIn 0.6s ease 0.5s both',
+            fontStyle: 'italic',
+          }}
+        >
+          {scene.note}
+        </p>
+      </div>
     </div>
   )
 }
 
+// ─────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────
 export default function ChallengeScene() {
   const wrapperRef = useRef(null)
   const [sceneIdx, setSceneIdx] = useState(0)
 
-  // Refs for event handlers — avoid stale closure on re-renders
-  const sceneIdxRef = useRef(0)    // mirrors sceneIdx for use in handlers
-  const accumRef = useRef(0)        // accumulated wheel deltaY
-  const lockedRef = useRef(false)   // true while transition is in progress
+  const sceneIdxRef = useRef(0)
+  const accumRef = useRef(0)
+  const lockedRef = useRef(false)
   const lockTimerRef = useRef(null)
 
   useEffect(() => {
     const el = wrapperRef.current
     if (!el) return
 
-    // ── Helper: update both state and ref atomically ──
     const applyScene = (idx) => {
       sceneIdxRef.current = idx
       setSceneIdx(idx)
     }
 
-    // ── Scroll-position handler ──
-    // Used by mobile (sole method) and desktop (initial state + fallback)
     const onScroll = () => {
       const rect = el.getBoundingClientRect()
       const totalScrollable = el.offsetHeight - window.innerHeight
@@ -299,30 +293,18 @@ export default function ChallengeScene() {
       }
     }
 
-    // ── Wheel handler (desktop step-by-step control) ──
-    // Prevents trackpad/mouse-wheel from skipping multiple scenes at once.
-    // Strategy:
-    //   1. Intercept wheel events only while section is "sticky" (in viewport)
-    //   2. Accumulate deltaY; advance exactly one scene per WHEEL_THRESHOLD crossed
-    //   3. Lock input for LOCK_DURATION ms after each advance
-    //   4. At boundaries (first↑ / last↓), release control → normal page scroll
     const onWheel = (e) => {
       const rect = el.getBoundingClientRect()
       const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
       if (!inSticky) {
-        // Reset accumulator while outside sticky zone so pre-section
-        // trackpad momentum never carries into the first scene advance.
         accumRef.current = 0
         return
       }
 
       const current = sceneIdxRef.current
-
-      // Boundary escape — let the page scroll out of this section naturally
       if (current === 0 && e.deltaY < 0) return
       if (current === SCENES.length - 1 && e.deltaY > 0) return
 
-      // We're handling this event
       e.preventDefault()
       if (lockedRef.current) return
 
@@ -334,17 +316,13 @@ export default function ChallengeScene() {
       accumRef.current = 0
       if (next === current) return
 
-      // Update scene immediately
       applyScene(next)
 
-      // Scroll to the canonical position for this scene, so the
-      // scroll-position handler stays in sync after lock expires
       const totalScrollable = el.offsetHeight - window.innerHeight
       const wrapAbsTop = rect.top + window.scrollY
       const targetY = wrapAbsTop + next * (totalScrollable / SCENES.length) + 2
       window.scrollTo({ top: targetY, behavior: 'smooth' })
 
-      // Lock: discard input while smooth-scroll animates
       lockedRef.current = true
       clearTimeout(lockTimerRef.current)
       lockTimerRef.current = setTimeout(() => {
@@ -355,20 +333,20 @@ export default function ChallengeScene() {
 
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('wheel', onWheel, { passive: false })
-    onScroll() // set initial scene on mount
+    onScroll()
 
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('wheel', onWheel)
       clearTimeout(lockTimerRef.current)
     }
-  }, []) // empty: handlers read from refs, not captured state
+  }, [])
 
   const scene = SCENES[sceneIdx]
 
   return (
     <section style={{ position: 'relative', background: scene.bg }}>
-      {/* Section header — scrolls away before sticky kicks in */}
+      {/* Section header */}
       <div
         style={{ padding: '80px 24px 40px', textAlign: 'center', position: 'relative', zIndex: 1 }}
         className="reveal"
@@ -376,10 +354,7 @@ export default function ChallengeScene() {
         <p style={{ color: '#FF9F1C', fontSize: '11px', letterSpacing: '0.35em', fontWeight: 700, textTransform: 'uppercase', marginBottom: '16px' }}>
           挑戦のストーリー
         </p>
-        <h2
-          className="font-bold"
-          style={{ color: '#1a1a2e', fontSize: 'clamp(1.4rem, 4vw, 2.4rem)', lineHeight: 1.3 }}
-        >
+        <h2 className="font-bold" style={{ color: '#1a1a2e', fontSize: 'clamp(1.4rem, 4vw, 2.4rem)', lineHeight: 1.3 }}>
           スクロールしてみてください。
         </h2>
         <p style={{ color: '#1a1a2e', opacity: 0.4, fontSize: '0.9rem', marginTop: '8px' }}>
@@ -390,7 +365,7 @@ export default function ChallengeScene() {
         </div>
       </div>
 
-      {/* 550vh scroll driver — sticky scene lives here */}
+      {/* 550vh scroll driver */}
       <div ref={wrapperRef} style={{ height: '550vh', position: 'relative' }}>
         <div
           style={{
@@ -399,33 +374,34 @@ export default function ChallengeScene() {
             height: '100vh',
             overflow: 'hidden',
             backgroundColor: scene.bg,
-            transition: 'background-color 0.55s ease',
+            transition: 'background-color 0.45s ease',
           }}
         >
-          {/* Grid overlay for dark scene */}
+          {/* Dark scene grid texture */}
           <div
             style={{
               position: 'absolute',
               inset: 0,
               opacity: scene.type === 'struggle' ? 0.03 : 0,
-              transition: 'opacity 0.5s ease',
+              transition: 'opacity 0.4s ease',
               backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
               backgroundSize: '56px 56px',
               pointerEvents: 'none',
+              zIndex: 1,
             }}
           />
 
-          {/* Yellow glow for celebrate */}
+          {/* Celebrate: flash */}
           {scene.type === 'celebrate' && (
             <div
               key="glow"
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'radial-gradient(circle at center, rgba(255,255,255,0.5) 0%, transparent 65%)',
+                background: 'radial-gradient(circle at center, rgba(255,255,255,0.4) 0%, transparent 60%)',
                 animation: 'flashBright 0.5s ease',
                 pointerEvents: 'none',
-                zIndex: 1,
+                zIndex: 10,
               }}
             />
           )}
@@ -435,7 +411,6 @@ export default function ChallengeScene() {
             CONFETTI.map(([left, delay, color, size, spin, isSquare], i) => (
               <div
                 key={`confetti-${i}`}
-                className="confetti-item"
                 style={{
                   position: 'absolute',
                   left: `${left}%`,
@@ -452,7 +427,7 @@ export default function ChallengeScene() {
               />
             ))}
 
-          {/* Scene content (key forces remount → re-triggers animations) */}
+          {/* Scene content — key remounts on scene change to re-trigger animations */}
           <SceneContent key={sceneIdx} scene={scene} />
 
           {/* Progress dots */}
@@ -467,7 +442,11 @@ export default function ChallengeScene() {
                   width: sceneIdx === i ? 10 : 6,
                   height: sceneIdx === i ? 10 : 6,
                   borderRadius: '50%',
-                  background: sceneIdx === i ? '#FF9F1C' : scene.type === 'struggle' ? 'rgba(255,255,255,0.2)' : 'rgba(26,26,46,0.15)',
+                  background: sceneIdx === i
+                    ? '#FF9F1C'
+                    : scene.type === 'struggle'
+                    ? 'rgba(255,255,255,0.2)'
+                    : 'rgba(26,26,46,0.15)',
                   transition: 'all 0.3s ease',
                 }}
               />
@@ -476,21 +455,9 @@ export default function ChallengeScene() {
         </div>
       </div>
 
-      {/* Simplified tail — bridge to next section */}
-      <div
-        style={{ padding: '52px 24px 60px', textAlign: 'center', background: '#1a1a2e' }}
-        className="reveal"
-      >
-        <p
-          style={{
-            color: 'rgba(255,255,255,0.82)',
-            fontSize: 'clamp(1.05rem, 3vw, 1.3rem)',
-            lineHeight: 1.75,
-            maxWidth: '380px',
-            margin: '0 auto 20px',
-            fontWeight: 600,
-          }}
-        >
+      {/* Tail */}
+      <div style={{ padding: '52px 24px 60px', textAlign: 'center', background: '#1a1a2e' }} className="reveal">
+        <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: 'clamp(1.05rem, 3vw, 1.3rem)', lineHeight: 1.75, maxWidth: '380px', margin: '0 auto 20px', fontWeight: 600 }}>
           「できた！」は終わりじゃない。
           <br />
           <span style={{ color: '#FF9F1C' }}>次の「やってみたい」への、入口だ。</span>
