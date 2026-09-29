@@ -11,8 +11,10 @@ export default function FinalCTA() {
         }}
       />
       {/* glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.06] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #FF9F1C 0%, transparent 70%)' }} />
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.06] pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #FF9F1C 0%, transparent 70%)' }}
+      />
 
       <div className="relative z-10 max-w-2xl mx-auto text-center">
         <div className="reveal">
@@ -23,16 +25,14 @@ export default function FinalCTA() {
           >
             次は、
             <br />
-            <span className="text-[#FF9F1C]">何ができるようになりたい？</span>
+            <span className="text-[#FF9F1C]">あなたができるようになる番。</span>
           </h2>
         </div>
 
         <div className="reveal reveal-delay-1">
           <p className="text-white/45 text-base md:text-lg leading-relaxed mb-10 max-w-lg mx-auto">
-            最初のページと同じ問いに戻りましたが、
-            ここまで読んだあなたには少し違う意味で届いているかもしれません。
-            <br /><br />
             挑戦して、失敗して、考えて、またやってみる。
+            <br />
             その循環を、ここから始めてみませんか。
           </p>
         </div>

@@ -80,6 +80,11 @@ const CONFETTI = [
   [86, 0.14, '#FFC928', 8,  620, 1],
 ]
 
+// Threshold (px) of accumulated wheel delta before advancing one step
+const WHEEL_THRESHOLD = 100
+// Lock duration (ms) after a step change — ignores further input during this period
+const LOCK_DURATION = 850
+
 function Figure({ type, accent }) {
   const sw = { strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
   const col = type === 'struggle' ? '#ffffff' : type === 'celebrate' ? '#1a1a2e' : accent
@@ -101,13 +106,8 @@ function Figure({ type, accent }) {
         transformOrigin: 'center 90px',
       }}
     >
-      {/* head */}
       <circle cx="36" cy="16" r="10" stroke={col} {...sw} />
-
-      {/* body */}
       <line x1="36" y1="26" x2="36" y2="62" stroke={col} {...sw} />
-
-      {/* arms */}
       {type === 'celebrate' ? (
         <>
           <line x1="36" y1="40" x2="14" y2="22" stroke={col} {...sw} />
@@ -125,8 +125,6 @@ function Figure({ type, accent }) {
           <line x1="36" y1="40" x2="56" y2="54" stroke={col} {...sw} />
         </>
       )}
-
-      {/* legs */}
       {type === 'retry' ? (
         <>
           <line x1="36" y1="62" x2="50" y2="86" stroke={col} {...sw} />
@@ -158,7 +156,6 @@ function SceneContent({ scene }) {
         animation: 'fadeIn 0.35s ease both',
       }}
     >
-      {/* scene number */}
       <p
         className="scene-anim"
         style={{
@@ -175,7 +172,6 @@ function SceneContent({ scene }) {
         {String(scene.idx + 1).padStart(2, '0')} / 05
       </p>
 
-      {/* figure */}
       <div
         className="scene-anim"
         style={{
@@ -190,7 +186,6 @@ function SceneContent({ scene }) {
         <Figure type={scene.type} accent={scene.accent} />
       </div>
 
-      {/* main word */}
       <div
         className="scene-anim"
         style={{
@@ -218,7 +213,6 @@ function SceneContent({ scene }) {
         </h2>
       </div>
 
-      {/* thinking dots (scene 2 only) */}
       {scene.type === 'think' && (
         <div
           className="scene-anim"
@@ -230,22 +224,12 @@ function SceneContent({ scene }) {
             opacity: 0,
           }}
         >
-          <div
-            className="think-dot-1"
-            style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }}
-          />
-          <div
-            className="think-dot-2"
-            style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }}
-          />
-          <div
-            className="think-dot-3"
-            style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }}
-          />
+          <div className="think-dot-1" style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }} />
+          <div className="think-dot-2" style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }} />
+          <div className="think-dot-3" style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFC928' }} />
         </div>
       )}
 
-      {/* sub text */}
       <p
         className="scene-anim"
         style={{
@@ -262,7 +246,6 @@ function SceneContent({ scene }) {
         {scene.sub}
       </p>
 
-      {/* note */}
       <p
         className="scene-anim"
         style={{
@@ -286,61 +269,111 @@ function SceneContent({ scene }) {
 export default function ChallengeScene() {
   const wrapperRef = useRef(null)
   const [sceneIdx, setSceneIdx] = useState(0)
-  const prevSceneRef = useRef(0)
+
+  // Refs for event handlers — avoid stale closure on re-renders
+  const sceneIdxRef = useRef(0)    // mirrors sceneIdx for use in handlers
+  const accumRef = useRef(0)        // accumulated wheel deltaY
+  const lockedRef = useRef(false)   // true while transition is in progress
+  const lockTimerRef = useRef(null)
 
   useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+
+    // ── Helper: update both state and ref atomically ──
+    const applyScene = (idx) => {
+      sceneIdxRef.current = idx
+      setSceneIdx(idx)
+    }
+
+    // ── Scroll-position handler ──
+    // Used by mobile (sole method) and desktop (initial state + fallback)
     const onScroll = () => {
-      const el = wrapperRef.current
-      if (!el) return
       const rect = el.getBoundingClientRect()
       const totalScrollable = el.offsetHeight - window.innerHeight
       const scrolled = Math.max(0, -rect.top)
       const progress = Math.min(1, scrolled / totalScrollable)
-      const raw = progress * SCENES.length
-      const idx = Math.min(SCENES.length - 1, Math.floor(raw))
-      if (idx !== prevSceneRef.current) {
-        prevSceneRef.current = idx
-        setSceneIdx(idx)
+      const idx = Math.min(SCENES.length - 1, Math.floor(progress * SCENES.length))
+      if (idx !== sceneIdxRef.current && !lockedRef.current) {
+        applyScene(idx)
       }
     }
+
+    // ── Wheel handler (desktop step-by-step control) ──
+    // Prevents trackpad/mouse-wheel from skipping multiple scenes at once.
+    // Strategy:
+    //   1. Intercept wheel events only while section is "sticky" (in viewport)
+    //   2. Accumulate deltaY; advance exactly one scene per WHEEL_THRESHOLD crossed
+    //   3. Lock input for LOCK_DURATION ms after each advance
+    //   4. At boundaries (first↑ / last↓), release control → normal page scroll
+    const onWheel = (e) => {
+      const rect = el.getBoundingClientRect()
+      const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
+      if (!inSticky) return
+
+      const current = sceneIdxRef.current
+
+      // Boundary escape — let the page scroll out of this section naturally
+      if (current === 0 && e.deltaY < 0) return
+      if (current === SCENES.length - 1 && e.deltaY > 0) return
+
+      // We're handling this event
+      e.preventDefault()
+      if (lockedRef.current) return
+
+      accumRef.current += e.deltaY
+      if (Math.abs(accumRef.current) < WHEEL_THRESHOLD) return
+
+      const dir = accumRef.current > 0 ? 1 : -1
+      const next = Math.max(0, Math.min(SCENES.length - 1, current + dir))
+      accumRef.current = 0
+      if (next === current) return
+
+      // Update scene immediately
+      applyScene(next)
+
+      // Scroll to the canonical position for this scene, so the
+      // scroll-position handler stays in sync after lock expires
+      const totalScrollable = el.offsetHeight - window.innerHeight
+      const wrapAbsTop = rect.top + window.scrollY
+      const targetY = wrapAbsTop + next * (totalScrollable / SCENES.length) + 2
+      window.scrollTo({ top: targetY, behavior: 'smooth' })
+
+      // Lock: discard input while smooth-scroll animates
+      lockedRef.current = true
+      clearTimeout(lockTimerRef.current)
+      lockTimerRef.current = setTimeout(() => {
+        lockedRef.current = false
+        accumRef.current = 0
+      }, LOCK_DURATION)
+    }
+
     window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+    window.addEventListener('wheel', onWheel, { passive: false })
+    onScroll() // set initial scene on mount
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('wheel', onWheel)
+      clearTimeout(lockTimerRef.current)
+    }
+  }, []) // empty: handlers read from refs, not captured state
 
   const scene = SCENES[sceneIdx]
 
   return (
     <section style={{ position: 'relative', background: scene.bg }}>
-      {/* section label - scrolls away before sticky begins */}
+      {/* Section header — scrolls away before sticky kicks in */}
       <div
-        style={{
-          padding: '80px 24px 40px',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1,
-        }}
+        style={{ padding: '80px 24px 40px', textAlign: 'center', position: 'relative', zIndex: 1 }}
         className="reveal"
       >
-        <p
-          style={{
-            color: '#FF9F1C',
-            fontSize: '11px',
-            letterSpacing: '0.35em',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            marginBottom: '16px',
-          }}
-        >
+        <p style={{ color: '#FF9F1C', fontSize: '11px', letterSpacing: '0.35em', fontWeight: 700, textTransform: 'uppercase', marginBottom: '16px' }}>
           挑戦のストーリー
         </p>
         <h2
           className="font-bold"
-          style={{
-            color: '#1a1a2e',
-            fontSize: 'clamp(1.4rem, 4vw, 2.4rem)',
-            lineHeight: 1.3,
-          }}
+          style={{ color: '#1a1a2e', fontSize: 'clamp(1.4rem, 4vw, 2.4rem)', lineHeight: 1.3 }}
         >
           スクロールしてみてください。
         </h2>
@@ -348,23 +381,12 @@ export default function ChallengeScene() {
           ここで起きることが、この教室のすべてです。
         </p>
         <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
-          <div
-            style={{
-              width: 1,
-              height: 40,
-              background: 'linear-gradient(to bottom, #FF9F1C, transparent)',
-              animation: 'floatY 1.8s ease-in-out infinite',
-            }}
-          />
+          <div style={{ width: 1, height: 40, background: 'linear-gradient(to bottom, #FF9F1C, transparent)', animation: 'floatY 1.8s ease-in-out infinite' }} />
         </div>
       </div>
 
-      {/* scroll driver — sticky section lives here */}
-      <div
-        ref={wrapperRef}
-        style={{ height: '550vh', position: 'relative' }}
-      >
-        {/* sticky viewport */}
+      {/* 550vh scroll driver — sticky scene lives here */}
+      <div ref={wrapperRef} style={{ height: '550vh', position: 'relative' }}>
         <div
           style={{
             position: 'sticky',
@@ -375,21 +397,20 @@ export default function ChallengeScene() {
             transition: 'background-color 0.55s ease',
           }}
         >
-          {/* grid overlay for dark scene */}
+          {/* Grid overlay for dark scene */}
           <div
             style={{
               position: 'absolute',
               inset: 0,
               opacity: scene.type === 'struggle' ? 0.03 : 0,
               transition: 'opacity 0.5s ease',
-              backgroundImage:
-                'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
               backgroundSize: '56px 56px',
               pointerEvents: 'none',
             }}
           />
 
-          {/* yellow glow for celebrate */}
+          {/* Yellow glow for celebrate */}
           {scene.type === 'celebrate' && (
             <div
               key="glow"
@@ -404,7 +425,7 @@ export default function ChallengeScene() {
             />
           )}
 
-          {/* confetti */}
+          {/* Confetti */}
           {scene.type === 'celebrate' &&
             CONFETTI.map(([left, delay, color, size, spin, isSquare], i) => (
               <div
@@ -426,21 +447,12 @@ export default function ChallengeScene() {
               />
             ))}
 
-          {/* scene content (key forces remount → re-triggers animations) */}
+          {/* Scene content (key forces remount → re-triggers animations) */}
           <SceneContent key={sceneIdx} scene={scene} />
 
-          {/* progress dots */}
+          {/* Progress dots */}
           <div
-            style={{
-              position: 'absolute',
-              right: 20,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              zIndex: 30,
-            }}
+            style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 10, zIndex: 30 }}
             aria-hidden="true"
           >
             {SCENES.map((s, i) => (
@@ -450,14 +462,7 @@ export default function ChallengeScene() {
                   width: sceneIdx === i ? 10 : 6,
                   height: sceneIdx === i ? 10 : 6,
                   borderRadius: '50%',
-                  background:
-                    sceneIdx === i
-                      ? scene.type === 'struggle'
-                        ? '#FF9F1C'
-                        : '#FF9F1C'
-                      : scene.type === 'struggle'
-                      ? 'rgba(255,255,255,0.2)'
-                      : 'rgba(26,26,46,0.15)',
+                  background: sceneIdx === i ? '#FF9F1C' : scene.type === 'struggle' ? 'rgba(255,255,255,0.2)' : 'rgba(26,26,46,0.15)',
                   transition: 'all 0.3s ease',
                 }}
               />
@@ -466,63 +471,26 @@ export default function ChallengeScene() {
         </div>
       </div>
 
-      {/* section tail — bridge to next section */}
+      {/* Simplified tail — bridge to next section */}
       <div
-        style={{
-          padding: '64px 24px',
-          textAlign: 'center',
-          background: '#1a1a2e',
-        }}
+        style={{ padding: '52px 24px 60px', textAlign: 'center', background: '#1a1a2e' }}
         className="reveal"
       >
         <p
           style={{
-            color: '#FF9F1C',
-            fontSize: '11px',
-            letterSpacing: '0.35em',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            marginBottom: '16px',
-          }}
-        >
-          この循環が、成長の正体です
-        </p>
-        <p
-          style={{
-            color: '#ffffff',
-            opacity: 0.6,
-            fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
-            maxWidth: '480px',
-            margin: '0 auto 32px',
+            color: 'rgba(255,255,255,0.82)',
+            fontSize: 'clamp(1.05rem, 3vw, 1.3rem)',
             lineHeight: 1.75,
+            maxWidth: '380px',
+            margin: '0 auto 20px',
+            fontWeight: 600,
           }}
         >
-          挑戦 → 失敗 → 考える → もう一回 → できた！
+          「できた！」は終わりじゃない。
           <br />
-          この教室では、この繰り返しを一緒に楽しみます。
+          <span style={{ color: '#FF9F1C' }}>次の「やってみたい」への、入口だ。</span>
         </p>
-        <a
-          href="#trial"
-          className="btn-cta"
-          style={{
-            background: '#FF9F1C',
-            color: '#fff',
-            fontWeight: 700,
-            padding: '16px 36px',
-            borderRadius: '100px',
-            fontSize: '1rem',
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 8px 28px rgba(255,159,28,0.3)',
-          }}
-        >
-          あなたの「やってみたい」を聞かせて
-          <svg className="arrow-icon" width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M4 9h10M10 5l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </a>
+        <div style={{ width: 1, height: 28, background: 'linear-gradient(to bottom, rgba(255,159,28,0.4), transparent)', margin: '0 auto' }} />
       </div>
     </section>
   )
