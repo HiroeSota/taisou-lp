@@ -1,25 +1,28 @@
 import { useRef, useEffect, useState } from 'react'
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Scene data
-// To swap in real photos: set photoSrc to the image path, e.g. '/images/step01.jpg'
-// ─────────────────────────────────────────────
+//
+// To add real photos:
+//   1. Place images in /public/images/challenge/
+//   2. Set photoSrc: '/images/challenge/step01.webp' (etc.)
+// When photoSrc is null → falls back to photoPlaceholderBg gradient
+// ─────────────────────────────────────────────────────────────────────────────
 const SCENES = [
   {
     idx: 0,
     word: 'やってみたい。',
     sub: '最初の一歩。',
-    note: '先生は答えを教えない。あなたの「やりたい」から全てが始まる。',
+    note: '先生は、すぐに答えを教えない。あなたの「やりたい」から全てが始まる。',
     bg: '#f8f5f0',
     textColor: '#1a1a2e',
     accent: '#FF9F1C',
     type: 'start',
-    // Set photoSrc to '/images/step01.jpg' etc. when real photos are ready
-    photoSrc: null,
+    photoSrc: null,                       // ← '/images/challenge/step01.webp'
     photoAlt: '跳び箱を前に、興味津々に見つめる子どもの写真',
+    photoPosition: 'center 40%',
     photoFilter: 'brightness(1.0) saturate(0.9)',
     photoPlaceholderBg: 'linear-gradient(170deg, #d4c8b8 0%, #b8aa98 60%, #a09080 100%)',
-    // Semi-transparent scene-color overlay keeps text readable over the photo
     readabilityOverlay: 'rgba(248,245,240,0.70)',
   },
   {
@@ -31,8 +34,9 @@ const SCENES = [
     textColor: '#ffffff',
     accent: '#FF9F1C',
     type: 'struggle',
-    photoSrc: null,
-    photoAlt: 'うまくいかず、試行錯誤している写真',
+    photoSrc: null,                       // ← '/images/challenge/step02.webp'
+    photoAlt: '試行錯誤しながら挑戦している写真',
+    photoPosition: 'center 50%',
     photoFilter: 'brightness(0.65) saturate(0.8)',
     photoPlaceholderBg: 'linear-gradient(170deg, #28283e 0%, #1a1a30 60%, #101020 100%)',
     readabilityOverlay: 'rgba(26,26,46,0.72)',
@@ -46,8 +50,9 @@ const SCENES = [
     textColor: '#1a1a2e',
     accent: '#FFC928',
     type: 'think',
-    photoSrc: null,
-    photoAlt: '先生と一緒に考えている写真',
+    photoSrc: null,                       // ← '/images/challenge/step03.webp'
+    photoAlt: '先生と一緒に動きを確認している写真',
+    photoPosition: 'center 50%',
     photoFilter: 'brightness(0.92) saturate(0.85)',
     photoPlaceholderBg: 'linear-gradient(170deg, #e0d4bc 0%, #c8bc9e 60%, #b4a888 100%)',
     readabilityOverlay: 'rgba(255,252,245,0.70)',
@@ -56,13 +61,14 @@ const SCENES = [
     idx: 3,
     word: 'もう一回。',
     sub: '少し変えて、また挑戦する。',
-    note: '「もう一回」が言える場所でいたい。ここはそういう場所だ。',
+    note: '「もう一回」が言える場所でありたい。',
     bg: '#ffffff',
     textColor: '#1a1a2e',
     accent: '#FF9F1C',
     type: 'retry',
-    photoSrc: null,
-    photoAlt: '再挑戦している、前向きな様子の写真',
+    photoSrc: null,                       // ← '/images/challenge/step04.webp'
+    photoAlt: '再挑戦している前向きな様子の写真',
+    photoPosition: 'center 45%',
     photoFilter: 'brightness(1.0) saturate(1.0)',
     photoPlaceholderBg: 'linear-gradient(170deg, #d8d0c4 0%, #c0b4a4 60%, #ac9e8c 100%)',
     readabilityOverlay: 'rgba(255,255,255,0.70)',
@@ -76,8 +82,9 @@ const SCENES = [
     textColor: '#1a1a2e',
     accent: '#1a1a2e',
     type: 'celebrate',
-    photoSrc: null,
+    photoSrc: null,                       // ← '/images/challenge/step05.webp'
     photoAlt: '技が成功して全力で喜んでいる写真',
+    photoPosition: 'center 40%',
     photoFilter: 'brightness(1.05) saturate(1.1)',
     photoPlaceholderBg: 'linear-gradient(170deg, #f0c800 0%, #ffe040 60%, #ffe870 100%)',
     readabilityOverlay: 'rgba(255,201,40,0.65)',
@@ -111,14 +118,34 @@ const CONFETTI = [
   [86, 0.14, '#FFC928', 8,  620, 1],
 ]
 
-const WHEEL_THRESHOLD = 100
-const LOCK_DURATION = 850
+// ─── Scroll state machine ─────────────────────────────────────────────────────
+// States:
+//   'outside'  — not in sticky zone (or never entered)
+//   'entering' — just entered sticky zone; this gesture MUST NOT advance a step
+//   'ready'    — gesture ended; waiting for the next deliberate swipe
+//   'locked'   — step just changed; waiting for this gesture to fully stop
+//
+// Transitions:
+//   outside  → entering : first wheel event where inSticky is true
+//   entering → ready    : GESTURE_END_MS passes with no wheel events
+//   ready    → locked   : threshold met → step changes
+//   locked   → ready    : GESTURE_END_MS passes with no wheel events
+//   any      → outside  : inSticky becomes false
+//
+// Boundary exit (no preventDefault):
+//   STEP01 + scroll up  → page scrolls up → sticky releases naturally
+//   STEP05 + scroll down (only in 'ready') → page scrolls down → sticky releases
+//   (in 'locked' at STEP05: still preventing, must wait for gesture to fully end)
+// ─────────────────────────────────────────────────────────────────────────────
+const GESTURE_END_MS = 220  // ms of no wheel events = gesture ended
+const STEP_THRESHOLD = 30   // min |accumulated deltaY| to trigger a step change
+const SCENES_COUNT = SCENES.length
 
-// ─────────────────────────────────────────────
-// Scene content
-// Layout mirrors the original (step number ~30% from top, text in lower half)
-// Background is photo (or placeholder gradient) + readability overlay
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SceneContent
+// Layout: step number at ~28% from top, main word below center
+// Background: photo (or gradient) + readability overlay
+// ─────────────────────────────────────────────────────────────────────────────
 function SceneContent({ scene }) {
   return (
     <div style={{ position: 'absolute', inset: 0, animation: 'fadeIn 0.3s ease both' }}>
@@ -133,7 +160,7 @@ function SceneContent({ scene }) {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              objectPosition: 'center',
+              objectPosition: scene.photoPosition || 'center',
               filter: scene.photoFilter || 'none',
               display: 'block',
             }}
@@ -161,7 +188,7 @@ function SceneContent({ scene }) {
           padding: '0 24px',
         }}
       >
-        {/* Top spacer — positions step number at ~28% from top (matches original) */}
+        {/* Top spacer — positions step number at ~28% from top */}
         <div style={{ height: '28vh', flexShrink: 0 }} />
 
         {/* Step number */}
@@ -180,7 +207,7 @@ function SceneContent({ scene }) {
           {String(scene.idx + 1).padStart(2, '0')} / 05
         </p>
 
-        {/* Middle spacer — space where the figure used to be */}
+        {/* Middle spacer */}
         <div style={{ height: '14vh', flexShrink: 0 }} />
 
         {/* Main word */}
@@ -261,17 +288,20 @@ function SceneContent({ scene }) {
   )
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Main component
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 export default function ChallengeScene() {
   const wrapperRef = useRef(null)
   const [sceneIdx, setSceneIdx] = useState(0)
 
-  const sceneIdxRef = useRef(0)
-  const accumRef = useRef(0)
-  const lockedRef = useRef(false)
-  const lockTimerRef = useRef(null)
+  // State machine refs (stable across renders — safe in event handlers)
+  const sceneIdxRef   = useRef(0)        // mirrors sceneIdx state
+  const phaseRef      = useRef('outside') // scroll phase: outside|entering|ready|locked
+  const accumRef      = useRef(0)         // accumulated wheel deltaY within current gesture
+  const prevSignRef   = useRef(0)         // sign of prev deltaY: -1 | 0 | 1
+  const prevStickyRef = useRef(false)     // was in sticky zone on previous wheel event
+  const gestureTimerRef = useRef(null)    // fires after GESTURE_END_MS of wheel silence
 
   useEffect(() => {
     const el = wrapperRef.current
@@ -282,53 +312,138 @@ export default function ChallengeScene() {
       setSceneIdx(idx)
     }
 
+    // Called when GESTURE_END_MS elapses with no wheel events
+    const onGestureEnd = () => {
+      if (phaseRef.current === 'entering' || phaseRef.current === 'locked') {
+        phaseRef.current = 'ready'
+      }
+      accumRef.current = 0
+      prevSignRef.current = 0
+    }
+
+    // Reset the gesture-end countdown (called on every wheel event inside sticky zone)
+    const scheduleGestureEnd = () => {
+      clearTimeout(gestureTimerRef.current)
+      gestureTimerRef.current = setTimeout(onGestureEnd, GESTURE_END_MS)
+    }
+
+    // ── onScroll ──────────────────────────────────────────────────────────────
+    // Primary control for mobile (no wheel events on touch).
+    // On desktop, only updates when wheel control is not active (phase = 'outside').
+    // Also manages body class for header dimming.
     const onScroll = () => {
       const rect = el.getBoundingClientRect()
+      const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
+
+      if (inSticky) {
+        document.body.classList.add('challenge-scene-active')
+      } else {
+        document.body.classList.remove('challenge-scene-active')
+      }
+
+      if (phaseRef.current !== 'outside') return
+
       const totalScrollable = el.offsetHeight - window.innerHeight
       const scrolled = Math.max(0, -rect.top)
       const progress = Math.min(1, scrolled / totalScrollable)
-      const idx = Math.min(SCENES.length - 1, Math.floor(progress * SCENES.length))
-      if (idx !== sceneIdxRef.current && !lockedRef.current) {
-        applyScene(idx)
-      }
+      const idx = Math.min(SCENES_COUNT - 1, Math.floor(progress * SCENES_COUNT))
+      if (idx !== sceneIdxRef.current) applyScene(idx)
     }
 
+    // ── onWheel (state machine) ───────────────────────────────────────────────
     const onWheel = (e) => {
       const rect = el.getBoundingClientRect()
       const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
-      if (!inSticky) {
+
+      const wasSticky = prevStickyRef.current
+      prevStickyRef.current = inSticky
+
+      // ── Detect sticky zone entry ──────────────────────────────────────────
+      if (!wasSticky && inSticky) {
+        // Snap scroll to the exact beginning of the sticky zone (step 0 position).
+        // This corrects any overshoot from a fast flick, and keeps the scroll position
+        // in sync with what we're about to display (step 0).
+        const wrapAbsTop = rect.top + window.scrollY
+        window.scrollTo({ top: wrapAbsTop + 2, behavior: 'instant' })
+
+        phaseRef.current = 'entering'
         accumRef.current = 0
+        prevSignRef.current = 0
+        applyScene(0)
+        scheduleGestureEnd()
+      }
+
+      // ── Outside sticky zone: reset state and yield control ────────────────
+      if (!inSticky) {
+        clearTimeout(gestureTimerRef.current)
+        phaseRef.current = 'outside'
+        accumRef.current = 0
+        prevSignRef.current = 0
         return
       }
 
-      const current = sceneIdxRef.current
-      if (current === 0 && e.deltaY < 0) return
-      if (current === SCENES.length - 1 && e.deltaY > 0) return
+      // ── Inside sticky zone ────────────────────────────────────────────────
+      const phase = phaseRef.current
+      const step  = sceneIdxRef.current
+      const sign  = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0
 
+      // ── Boundary: release control so the page can scroll out ─────────────
+      // STEP01 + up → let page scroll up (sticky releases naturally)
+      if (step === 0 && sign < 0) {
+        accumRef.current = 0
+        prevSignRef.current = 0
+        return  // no preventDefault → page scrolls
+      }
+      // STEP05 + down, only when 'ready' (gesture that reached STEP05 has ended)
+      // → let page scroll down to the next section
+      if (step === SCENES_COUNT - 1 && sign > 0 && phase === 'ready') {
+        accumRef.current = 0
+        prevSignRef.current = 0
+        return  // no preventDefault → page scrolls
+      }
+
+      // ── Claim this wheel event: prevent page from scrolling ───────────────
       e.preventDefault()
-      if (lockedRef.current) return
+
+      // ── Direction change: reset accumulator ──────────────────────────────
+      if (sign !== 0 && prevSignRef.current !== 0 && sign !== prevSignRef.current) {
+        accumRef.current = 0
+      }
+      if (sign !== 0) prevSignRef.current = sign
+
+      // ── Keep gesture timer alive ──────────────────────────────────────────
+      scheduleGestureEnd()
+
+      // ── entering / locked: absorb events, no step change ─────────────────
+      if (phase === 'entering' || phase === 'locked') return
+
+      // ── ready: accumulate and check for step change ───────────────────────
+      if (phase !== 'ready') return
 
       accumRef.current += e.deltaY
-      if (Math.abs(accumRef.current) < WHEEL_THRESHOLD) return
+      if (Math.abs(accumRef.current) < STEP_THRESHOLD) return
 
-      const dir = accumRef.current > 0 ? 1 : -1
-      const next = Math.max(0, Math.min(SCENES.length - 1, current + dir))
+      const stepDir  = accumRef.current > 0 ? 1 : -1
+      const nextStep = Math.max(0, Math.min(SCENES_COUNT - 1, step + stepDir))
+
+      if (nextStep === step) {
+        // Already at boundary in this direction (e.g. STEP05 going down while locked).
+        // Keep preventing scroll; gesture must end before the boundary exit above fires.
+        return
+      }
+
+      // ── Advance step ──────────────────────────────────────────────────────
       accumRef.current = 0
-      if (next === current) return
+      prevSignRef.current = 0
+      applyScene(nextStep)
+      phaseRef.current = 'locked'
 
-      applyScene(next)
-
+      // Sync scroll position to this step's canonical position within the 550vh zone.
+      // Ensures that after step change, the next gesture starts from the right offset.
       const totalScrollable = el.offsetHeight - window.innerHeight
       const wrapAbsTop = rect.top + window.scrollY
-      const targetY = wrapAbsTop + next * (totalScrollable / SCENES.length) + 2
+      const targetY = wrapAbsTop + nextStep * (totalScrollable / SCENES_COUNT) + 2
       window.scrollTo({ top: targetY, behavior: 'smooth' })
-
-      lockedRef.current = true
-      clearTimeout(lockTimerRef.current)
-      lockTimerRef.current = setTimeout(() => {
-        lockedRef.current = false
-        accumRef.current = 0
-      }, LOCK_DURATION)
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -338,7 +453,8 @@ export default function ChallengeScene() {
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('wheel', onWheel)
-      clearTimeout(lockTimerRef.current)
+      clearTimeout(gestureTimerRef.current)
+      document.body.classList.remove('challenge-scene-active')
     }
   }, [])
 
@@ -377,7 +493,7 @@ export default function ChallengeScene() {
             transition: 'background-color 0.45s ease',
           }}
         >
-          {/* Dark scene grid texture */}
+          {/* Grid texture for dark scene */}
           <div
             style={{
               position: 'absolute',
@@ -391,7 +507,7 @@ export default function ChallengeScene() {
             }}
           />
 
-          {/* Celebrate: flash */}
+          {/* Celebrate: radial flash */}
           {scene.type === 'celebrate' && (
             <div
               key="glow"
@@ -427,7 +543,7 @@ export default function ChallengeScene() {
               />
             ))}
 
-          {/* Scene content — key remounts on scene change to re-trigger animations */}
+          {/* Scene content — key remounts to re-trigger enter animations */}
           <SceneContent key={sceneIdx} scene={scene} />
 
           {/* Progress dots */}

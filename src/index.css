@@ -297,6 +297,18 @@ body {
   .mobile-sticky-cta { display: none; }
 }
 
+/* ===== CHALLENGE SCENE — header dimming ===== */
+/* Nav fades out while the 5-step scroll experience is active */
+body.challenge-scene-active nav {
+  opacity: 0.2;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+/* Restore immediately when leaving */
+body:not(.challenge-scene-active) nav {
+  transition: opacity 0.4s ease, background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
 /* ===== CHALLENGE SCENE ===== */
 .challenge-word {
   animation: bounceIn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
