@@ -6,13 +6,14 @@ import Marquee from './components/Marquee'
 import Hero from './sections/Hero'
 import Empathy from './sections/Empathy'
 import ChallengeScene from './sections/ChallengeScene'
+import BrandPhilosophy from './sections/BrandPhilosophy'
 import LessonSteps from './sections/LessonSteps'
-import MidCTA from './sections/MidCTA'
-import Features from './sections/Features'
-import GrowthCycle from './sections/GrowthCycle'
 import ForWho from './sections/ForWho'
+import Safety from './sections/Safety'
 import Instructor from './sections/Instructor'
+import MidCTA from './sections/MidCTA'
 import LessonFlow from './sections/LessonFlow'
+import BasicInfo from './sections/BasicInfo'
 import FAQ from './sections/FAQ'
 import FinalCTA from './sections/FinalCTA'
 
@@ -32,17 +33,6 @@ function useReveal() {
   }, [])
 }
 
-const philosophyWords = [
-  '挑戦する',
-  '失敗する',
-  '考える',
-  '工夫する',
-  'できた！',
-  'また挑戦する',
-  '自分で動く',
-  '楽しむ',
-]
-
 export default function App() {
   useReveal()
 
@@ -53,63 +43,59 @@ export default function App() {
       <MobileStickyCTA />
 
       <main className="pb-16 md:pb-0">
+
+        {/* 01 ファーストビュー */}
         <Hero />
+
+        {/* 02 共感 */}
         <Empathy />
+
+        {/* 04 5ステップのスクロール体験 */}
         <ChallengeScene />
 
-        {/* thin marquee strip between ChallengeScene and LessonSteps */}
+        {/* Orange marquee — energy transition after "できた！" */}
         <div
-          style={{
-            background: '#FF9F1C',
-            padding: '12px 0',
-            overflow: 'hidden',
-          }}
+          style={{ background: '#FF9F1C', padding: '12px 0', overflow: 'hidden' }}
           aria-hidden="true"
         >
           <Marquee
-            items={philosophyWords}
+            items={['やってみたい', 'うまくいかない', 'どうすれば？', 'もう一回', 'できた！', '次の挑戦へ']}
             direction="left"
-            speed={20}
+            speed={18}
             gap={48}
             itemClass="text-white font-bold text-sm tracking-widest uppercase"
             separator="◆"
           />
         </div>
 
+        {/* 05 教室独自の価値観 "技ができる。その先へ。" */}
+        <BrandPhilosophy />
+
+        {/* 06 どう教えるのか */}
         <LessonSteps />
-        <MidCTA />
-        <Features />
 
-        {/* quiet marquee strip — philosophy */}
-        <div
-          style={{
-            background: '#1a1a2e',
-            padding: '14px 0',
-            overflow: 'hidden',
-          }}
-          aria-hidden="true"
-        >
-          <Marquee
-            items={[
-              'やってみたい → できた！',
-              '自分のペースで',
-              '失敗はヒント',
-              '伴走者がいる',
-              '次は何に挑戦する？',
-            ]}
-            direction="right"
-            speed={25}
-            gap={56}
-            itemClass="text-white/40 font-medium text-sm tracking-wider"
-            separator="—"
-          />
-        </div>
-
-        <GrowthCycle />
+        {/* 07 どんなことに挑戦できるのか */}
         <ForWho />
+
+        {/* 08 安全への考え方 */}
+        <Safety />
+
+        {/* 09 指導者紹介 */}
         <Instructor />
+
+        {/* Mid CTA */}
+        <MidCTA />
+
+        {/* 10 体験レッスンの流れ */}
         <LessonFlow />
+
+        {/* 11 基本情報 */}
+        <BasicInfo />
+
+        {/* 12 FAQ */}
         <FAQ />
+
+        {/* 13 最終CTA */}
         <FinalCTA />
       </main>
 

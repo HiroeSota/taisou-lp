@@ -1,87 +1,97 @@
-const steps = [
-  {
-    num: '01',
-    title: '「何ができるようになりたい？」を聞く',
-    body: 'まず先生があなたに問いかけます。バク転、逆立ち、側転——なんでもOK。漠然とした「もっと身体を動かしたい」もOK。',
-  },
-  {
-    num: '02',
-    title: '今の身体の動きを一緒に確認する',
-    body: '今できること・できないこと・どこが課題かを一緒に確認します。否定なし。あくまで「今の状態を知るため」の確認です。',
-  },
-  {
-    num: '03',
-    title: '目標から逆算して練習する',
-    body: '「バク転のために、まず後ろに倒れる感覚に慣れよう」——ゴールからの道筋を先生が一緒に考えます。',
-  },
-  {
-    num: '04',
-    title: '小さな成功体験を積み重ねる',
-    body: '「昨日できなかったことが今日できた」という積み重ねが自信になります。大きな技への道は、小さな「できた」の集合体です。',
-  },
-  {
-    num: '05',
-    title: '「次は何をしたい？」で終わる',
-    body: 'レッスンの最後は振り返りと次の目標設定。「次も来たい」という気持ちで帰ってもらうことを大切にしています。',
-  },
-]
+const VERBS = ['見る。', '考える。', '試す。', '感じる。', '直す。']
 
 export default function LessonSteps() {
   return (
-    <section className="py-24 md:py-32 bg-white px-6 overflow-hidden">
-      <div className="max-w-5xl mx-auto">
-        <div className="reveal text-center mb-16">
-          <p className="text-[#FF9F1C] text-xs tracking-[0.3em] uppercase mb-4">レッスンの流れ</p>
+    <section className="py-24 md:py-36 bg-white px-6 overflow-hidden">
+      <div className="max-w-4xl mx-auto">
+
+        {/* ── Big opener ── */}
+        <div className="reveal mb-16 md:mb-20">
+          <p className="text-[#FF9F1C] text-[11px] tracking-[0.35em] uppercase mb-6 font-bold">
+            どう教えるのか
+          </p>
           <h2
-            className="font-bold text-[#1a1a2e] leading-tight mb-4"
-            style={{ fontSize: 'clamp(1.6rem, 4vw, 2.8rem)' }}
+            className="font-black text-[#1a1a2e] leading-none"
+            style={{ fontSize: 'clamp(2.2rem, 7vw, 5.5rem)', letterSpacing: '-0.03em' }}
           >
-            あなたの「やりたい」から
+            教えて終わり、
             <br />
-            すべてが始まる。
+            にしない。
           </h2>
-          <p className="text-[#1a1a2e]/50 text-base max-w-md mx-auto leading-relaxed">
-            決められたカリキュラムはありません。
-            一人ひとりの目標に合わせて、レッスンを設計します。
+        </div>
+
+        {/* ── Verb flow ── */}
+        <div className="reveal mb-16 md:mb-20">
+          <div className="flex flex-wrap gap-x-3 gap-y-2 items-baseline">
+            {VERBS.map((v, i) => (
+              <span
+                key={i}
+                className="font-bold text-[#1a1a2e]"
+                style={{
+                  fontSize: 'clamp(1.2rem, 3.5vw, 2rem)',
+                  color: i === 2 ? '#FF9F1C' : '#1a1a2e',
+                }}
+              >
+                {v}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 text-[#1a1a2e]/45" style={{ fontSize: 'clamp(0.85rem, 1.8vw, 0.95rem)' }}>
+            繰り返しの中で、身体が理解していく。
           </p>
         </div>
 
-        <div className="relative">
-          {/* vertical line */}
-          <div className="hidden md:block absolute left-[28px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-[#FF9F1C] via-[#FFC928] to-[#FF9F1C]/20" />
-
-          <div className="flex flex-col gap-8 md:gap-10">
-            {steps.map((s, i) => (
+        {/* ── 3 key points ── */}
+        <div className="grid md:grid-cols-3 gap-5 mb-16 md:mb-20">
+          {[
+            {
+              title: '本人の目標からスタート',
+              body: '先生が決めたカリキュラムはありません。「何ができるようになりたいか」から逆算して、練習を設計します。',
+            },
+            {
+              title: '動きを見て、一緒に考える',
+              body: '「なぜうまくいかないか」を先生が観察し、身体の使い方を一緒に確認します。否定ではなく、分析から始まります。',
+            },
+            {
+              title: '段階を踏んで、自分で再現する',
+              body: '必要なステップを小さく分け、一つひとつクリアしていきます。最後は、先生なしでも自分でできる状態を目指します。',
+            },
+          ].map((item, i) => (
+            <div
+              key={i}
+              className={`reveal reveal-delay-${i + 1} rounded-2xl p-6 border border-[#ede8de] bg-[#fafaf8]`}
+            >
               <div
-                key={i}
-                className={`reveal reveal-delay-${i + 1} flex gap-6 md:gap-8 items-start`}
+                className="w-8 h-8 rounded-full flex items-center justify-center mb-4"
+                style={{
+                  background: 'rgba(255,159,28,0.1)',
+                  border: '1px solid rgba(255,159,28,0.2)',
+                  color: '#FF9F1C',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
               >
-                {/* step circle */}
-                <div
-                  className="relative shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm z-10"
-                  style={{
-                    background: i === 4 ? '#FF9F1C' : '#fff',
-                    border: `2px solid ${i === 4 ? '#FF9F1C' : '#e8e0d0'}`,
-                    color: i === 4 ? '#fff' : '#FF9F1C',
-                  }}
-                >
-                  {s.num}
-                </div>
-
-                {/* content */}
-                <div
-                  className={`flex-1 rounded-2xl p-6 md:p-8 border transition-all duration-300 hover:shadow-md ${
-                    i === 4
-                      ? 'bg-[#fffaf0] border-[#FF9F1C]/30'
-                      : 'bg-[#fafaf8] border-[#ede8de]'
-                  }`}
-                >
-                  <p className="font-bold text-[#1a1a2e] text-lg mb-2 leading-snug">{s.title}</p>
-                  <p className="text-[#1a1a2e]/55 text-sm md:text-base leading-relaxed">{s.body}</p>
-                </div>
+                {String(i + 1).padStart(2, '0')}
               </div>
-            ))}
-          </div>
+              <p className="font-bold text-[#1a1a2e] text-base mb-2 leading-snug">{item.title}</p>
+              <p className="text-[#1a1a2e]/50 text-sm leading-relaxed">{item.body}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Closing line ── */}
+        <div className="reveal border-l-4 border-[#FF9F1C] pl-6 py-1">
+          <p
+            className="font-bold text-[#1a1a2e] leading-snug"
+            style={{ fontSize: 'clamp(1rem, 2.5vw, 1.3rem)' }}
+          >
+            先生がいなくても、
+            <br />
+            <span style={{ color: '#FF9F1C' }}>自分で再現できる状態へ。</span>
+          </p>
+          <p className="text-[#1a1a2e]/40 text-sm mt-2">
+            それが、この教室が指導で目指すゴールです。
+          </p>
         </div>
       </div>
     </section>

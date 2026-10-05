@@ -1,16 +1,16 @@
+// 4枚に絞り（大人向けカードは ForWho で対応）
 const worries = [
   { text: 'やってみたい技があるけど、どこから練習すればいい？', icon: '🤸', featured: true },
   { text: '運動が苦手で、集団レッスンについていけなかった。', icon: '😞' },
   { text: '体を動かすのは好きだけど、何か目標がほしい。', icon: '🎯' },
-  { text: '子どもが運動に自信を持てるようにしてあげたい。', icon: '👶' },
-  { text: '大人になってから始めても、本当にできるの？', icon: '🤔' },
+  { text: '子どもに、自分の身体に自信を持てるようになってほしい。', icon: '👶' },
 ]
 
 export default function Empathy() {
   return (
-    <section id="about" className="py-16 md:py-24 bg-[#fffcf5] px-6 overflow-hidden">
+    <section id="about" className="py-14 md:py-20 bg-[#fffcf5] px-6 overflow-hidden">
       <div className="max-w-4xl mx-auto">
-        <div className="reveal text-center mb-10">
+        <div className="reveal text-center mb-8">
           <p className="text-[#FF9F1C] text-xs tracking-[0.3em] uppercase mb-3">あなたの気持ち、ありませんか？</p>
           <h2
             className="font-bold text-[#1a1a2e] leading-tight"
@@ -22,38 +22,24 @@ export default function Empathy() {
           </h2>
         </div>
 
-        {/* Worry cards — varied layout */}
-        <div className="max-w-2xl mx-auto mb-10">
-          {/* Featured card — full width, slightly larger */}
+        {/* Worry cards */}
+        <div className="max-w-2xl mx-auto mb-8">
+          {/* Featured card */}
           <div
-            className="reveal bg-white rounded-2xl px-6 py-5 mb-3 border-l-4 border-[#FF9F1C] shadow-sm flex items-start gap-4"
+            className="reveal bg-white rounded-2xl px-6 py-4 mb-3 border-l-4 shadow-sm flex items-start gap-4"
             style={{ borderColor: '#FF9F1C', transform: 'rotate(-0.2deg)' }}
           >
             <span className="text-2xl shrink-0 mt-0.5">{worries[0].icon}</span>
             <p className="text-[#1a1a2e] text-base md:text-lg font-semibold leading-snug">{worries[0].text}</p>
           </div>
 
-          {/* Grid — 2 columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-            {worries.slice(1, 3).map((w, i) => (
+          {/* 3 compact cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {worries.slice(1).map((w, i) => (
               <div
                 key={i}
-                className={`reveal reveal-delay-${i + 1} bg-white rounded-2xl px-5 py-4 shadow-sm border border-[#f0ebe0] flex items-start gap-3`}
-                style={{ transform: i % 2 === 0 ? 'rotate(-0.3deg)' : 'rotate(0.4deg)' }}
-              >
-                <span className="text-xl shrink-0 mt-0.5">{w.icon}</span>
-                <p className="text-[#1a1a2e] text-sm md:text-base font-medium leading-snug">{w.text}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom row — 2 compact cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {worries.slice(3, 5).map((w, i) => (
-              <div
-                key={i}
-                className={`reveal reveal-delay-${i + 3} bg-white/70 rounded-xl px-5 py-4 border border-[#f0ebe0] flex items-start gap-3`}
-                style={{ transform: i % 2 === 0 ? 'rotate(0.2deg)' : 'rotate(-0.3deg)' }}
+                className={`reveal reveal-delay-${i + 1} bg-white rounded-xl px-4 py-4 border border-[#f0ebe0] flex items-start gap-3`}
+                style={{ transform: i % 2 === 0 ? 'rotate(-0.2deg)' : 'rotate(0.3deg)' }}
               >
                 <span className="text-lg shrink-0 mt-0.5">{w.icon}</span>
                 <p className="text-[#1a1a2e]/75 text-sm font-medium leading-snug">{w.text}</p>

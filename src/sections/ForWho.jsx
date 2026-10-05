@@ -1,127 +1,99 @@
 import Marquee from '../components/Marquee'
 
-const tagsRow1 = [
-  'バク転をやってみたい',
-  '逆立ちができるようになりたい',
-  '運動をもっと楽しみたい',
-  '自分の身体を思い通りに動かしたい',
-  '苦手な動きを克服したい',
-]
-
-const tagsRow2 = [
-  '集団レッスンが合わなかった',
-  '新しいことに挑戦したい',
-  '体力・柔軟性を上げたい',
-  '子どもに自信をつけさせたい',
-  'できた！という瞬間を体験したい',
+// 提供予定の内容。未確定のものはここを更新してください。
+const contentTags = [
+  'バク転',
+  '逆立ち・倒立',
+  '側転',
+  '跳び箱',
+  '鉄棒',
+  'マット運動',
+  '前転・後転',
+  'アクロバット',
+  '柔軟・ストレッチ',
+  '身体の使い方',
+  'バランス',
+  '基礎体力づくり',
 ]
 
 const ageGroups = [
   {
     label: '小学生〜',
-    desc: '「やってみたい！」という好奇心を、本物の力に変えます。',
+    desc: '「やってみたい！」という好奇心を、本物の力に。',
     color: '#FF9F1C',
   },
   {
     label: '中高生〜',
-    desc: '技を磨きながら、身体の使い方を論理的に学べます。',
+    desc: '技を磨きながら、身体の使い方を論理的に学ぶ。',
     color: '#FFC928',
   },
   {
     label: '大人〜',
-    desc: '年齢に関係なく、始められます。自分の身体と向き合う時間を。',
+    desc: '年齢に関係なく、自分の身体と向き合う時間を。',
     color: '#FF9F1C',
   },
 ]
 
 export default function ForWho() {
   return (
-    <section className="py-24 md:py-32 bg-white overflow-hidden">
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="reveal text-center mb-12">
-          <p className="text-[#FF9F1C] text-xs tracking-[0.3em] uppercase mb-4">こんな人におすすめ</p>
+    <section className="py-20 md:py-32 bg-[#fffcf5] overflow-hidden">
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="reveal mb-10">
+          <p className="text-[#FF9F1C] text-[11px] tracking-[0.35em] uppercase mb-4 font-bold">
+            どんなことに挑戦できるのか
+          </p>
           <h2
             className="font-bold text-[#1a1a2e] leading-tight"
-            style={{ fontSize: 'clamp(1.6rem, 4vw, 2.8rem)' }}
+            style={{ fontSize: 'clamp(1.5rem, 4vw, 2.6rem)' }}
           >
-            「やってみたい」という気持ちが
+            あなたの「やりたい」が、
             <br />
-            あれば、それで十分です。
+            ここにあります。
           </h2>
         </div>
       </div>
 
-      {/* marquee tag rows (full bleed, no px-6) */}
+      {/* Marquee tags — full bleed */}
       <div className="reveal reveal-delay-1 mb-3">
         <Marquee
-          items={tagsRow1}
+          items={contentTags.slice(0, 7)}
           direction="left"
-          speed={35}
-          gap={24}
-          itemClass="inline-block bg-[#fffcf5] border border-[#FF9F1C]/30 text-[#1a1a2e] text-sm font-medium px-5 py-2.5 rounded-full"
+          speed={30}
+          gap={20}
+          itemClass="inline-block bg-white border border-[#FF9F1C]/30 text-[#1a1a2e] text-sm font-medium px-5 py-2.5 rounded-full"
           separator="·"
         />
       </div>
-      <div className="reveal reveal-delay-2 mb-16">
+      <div className="reveal reveal-delay-2 mb-14">
         <Marquee
-          items={tagsRow2}
+          items={contentTags.slice(5)}
           direction="right"
-          speed={30}
-          gap={24}
-          itemClass="inline-block bg-[#fffcf5] border border-[#FFC928]/40 text-[#1a1a2e] text-sm font-medium px-5 py-2.5 rounded-full"
+          speed={25}
+          gap={20}
+          itemClass="inline-block bg-white border border-[#FFC928]/40 text-[#1a1a2e] text-sm font-medium px-5 py-2.5 rounded-full"
           separator="·"
         />
       </div>
 
-      <div className="max-w-5xl mx-auto px-6">
-        {/* age groups */}
-        <div className="grid md:grid-cols-3 gap-5">
+      <div className="max-w-4xl mx-auto px-6">
+        <p className="reveal text-[#1a1a2e]/35 text-xs text-center mb-10">
+          ※ 対応内容は後日更新予定。お気軽にご相談ください。
+        </p>
+
+        {/* Age groups */}
+        <div className="reveal grid md:grid-cols-3 gap-4">
           {ageGroups.map((ag, i) => (
             <div
               key={i}
-              className={`reveal reveal-delay-${i + 1} card-hover rounded-2xl p-7 text-center border border-[#ede8de]`}
-              style={{ background: 'linear-gradient(135deg, #fffcf5 0%, #fff 100%)' }}
+              className={`reveal reveal-delay-${i + 1} rounded-2xl p-6 text-center border border-[#ede8de] bg-white`}
             >
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-white font-bold text-sm"
-                style={{ background: ag.color, boxShadow: `0 6px 20px ${ag.color}40` }}
+                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 text-white font-bold text-sm"
+                style={{ background: ag.color, boxShadow: `0 4px 16px ${ag.color}40` }}
               >
                 {ag.label}
               </div>
               <p className="text-[#1a1a2e]/55 text-sm leading-relaxed">{ag.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* photo strip */}
-        <div className="reveal reveal-delay-4 mt-16 grid grid-cols-3 gap-3">
-          {[
-            { label: '挑戦中の表情', rotate: '-2deg' },
-            { label: '先生と練習', rotate: '0.8deg' },
-            { label: '技ができた瞬間', rotate: '-1deg' },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="rounded-xl overflow-hidden bg-[#f5f0e8] border border-[#ede8de]"
-              style={{
-                aspectRatio: '3/4',
-                transform: `rotate(${item.rotate})`,
-                transition: 'transform 0.3s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'rotate(0deg) scale(1.03)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = `rotate(${item.rotate})`)}
-            >
-              <div className="w-full h-full flex items-center justify-center text-center p-3">
-                <div>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="mx-auto mb-2 text-[#1a1a2e]/20">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                  <p className="text-[#1a1a2e]/30 text-xs">{item.label}</p>
-                  <p className="text-[#1a1a2e]/20 text-xs mt-0.5">写真は後日</p>
-                </div>
-              </div>
             </div>
           ))}
         </div>
