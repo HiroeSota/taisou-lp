@@ -394,12 +394,17 @@ export default function ChallengeScene() {
         prevSignRef.current = 0
         return  // no preventDefault → page scrolls
       }
-      // STEP05 + down, only when 'ready' (gesture that reached STEP05 has ended)
-      // → let page scroll down to the next section
+      // STEP05 + down, only when 'ready' → force-jump past sticky zone end
+      // (without this, user needs to scroll ~90vh to exit — feels stuck)
       if (step === SCENES_COUNT - 1 && sign > 0 && phase === 'ready') {
+        e.preventDefault()
+        const totalScrollable = el.offsetHeight - window.innerHeight
+        const wrapAbsTop = rect.top + window.scrollY
+        window.scrollTo({ top: wrapAbsTop + totalScrollable + 10, behavior: 'smooth' })
+        phaseRef.current = 'outside'
         accumRef.current = 0
         prevSignRef.current = 0
-        return  // no preventDefault → page scrolls
+        return
       }
 
       // ── Claim this wheel event: prevent page from scrolling ───────────────
@@ -443,7 +448,7 @@ export default function ChallengeScene() {
       const totalScrollable = el.offsetHeight - window.innerHeight
       const wrapAbsTop = rect.top + window.scrollY
       const targetY = wrapAbsTop + nextStep * (totalScrollable / SCENES_COUNT) + 2
-      window.scrollTo({ top: targetY, behavior: 'smooth' })
+      window.scrollTo({ top: targetY, behavior: 'instant' })
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
