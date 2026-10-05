@@ -300,7 +300,7 @@ body {
 /* ===== CHALLENGE SCENE — header dimming ===== */
 /* Nav fades out while the 5-step scroll experience is active */
 body.challenge-scene-active nav {
-  opacity: 0.2;
+  opacity: 0;
   pointer-events: none;
   transition: opacity 0.5s ease;
 }
