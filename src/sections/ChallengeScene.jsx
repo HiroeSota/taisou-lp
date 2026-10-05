@@ -118,27 +118,23 @@ const CONFETTI = [
   [86, 0.14, '#FFC928', 8,  620, 1],
 ]
 
-// ─── Scroll state machine ─────────────────────────────────────────────────────
-// States:
-//   'outside'  — not in sticky zone (or never entered)
-//   'entering' — just entered sticky zone; this gesture MUST NOT advance a step
-//   'ready'    — gesture ended; waiting for the next deliberate swipe
-//   'locked'   — step just changed; waiting for this gesture to fully stop
+// ─── Scroll control ───────────────────────────────────────────────────────────
+// シンプルな累積方式:
+//   deltaY を累積 → threshold 超えたら 1STEP 変更 → LOCK_DURATION ロック
 //
-// Transitions:
-//   outside  → entering : first wheel event where inSticky is true
-//   entering → ready    : GESTURE_END_MS passes with no wheel events
-//   ready    → locked   : threshold met → step changes
-//   locked   → ready    : GESTURE_END_MS passes with no wheel events
-//   any      → outside  : inSticky becomes false
+// Entry guard (入口対策のみ):
+//   ChallengeScene が sticky になった瞬間 isEntryGuard = true にし、
+//   最後の wheel から ENTRY_GUARD_MS 経過するまで STEP 変更を無視する。
+//   これにより「入るために使ったスクロールで STEP02 へ飛ぶ」問題を防ぐ。
 //
-// Boundary exit (no preventDefault):
-//   STEP01 + scroll up  → page scrolls up → sticky releases naturally
-//   STEP05 + scroll down (only in 'ready') → page scrolls down → sticky releases
-//   (in 'locked' at STEP05: still preventing, must wait for gesture to fully end)
+// STEP05 exit:
+//   STEP05 遷移時はスクロール位置を sticky ゾーン末端近くにスナップ。
+//   ロック中は e.preventDefault() でページ退出を防ぎ、
+//   ロック解除後は自然なページスクロールで次セクションへ抜ける。
 // ─────────────────────────────────────────────────────────────────────────────
-const GESTURE_END_MS = 220  // ms of no wheel events = gesture ended
-const STEP_THRESHOLD = 30   // min |accumulated deltaY| to trigger a step change
+const WHEEL_THRESHOLD  = 100  // accumulated deltaY to trigger 1 step change
+const LOCK_DURATION    = 600  // ms lock after step change
+const ENTRY_GUARD_MS   = 200  // ms of wheel silence to lift the entry guard
 const SCENES_COUNT = SCENES.length
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -295,13 +291,13 @@ export default function ChallengeScene() {
   const wrapperRef = useRef(null)
   const [sceneIdx, setSceneIdx] = useState(0)
 
-  // State machine refs (stable across renders — safe in event handlers)
-  const sceneIdxRef   = useRef(0)        // mirrors sceneIdx state
-  const phaseRef      = useRef('outside') // scroll phase: outside|entering|ready|locked
-  const accumRef      = useRef(0)         // accumulated wheel deltaY within current gesture
-  const prevSignRef   = useRef(0)         // sign of prev deltaY: -1 | 0 | 1
-  const prevStickyRef = useRef(false)     // was in sticky zone on previous wheel event
-  const gestureTimerRef = useRef(null)    // fires after GESTURE_END_MS of wheel silence
+  const sceneIdxRef     = useRef(0)
+  const accumRef        = useRef(0)
+  const lockedRef       = useRef(false)
+  const lockTimerRef    = useRef(null)
+  const isEntryGuardRef = useRef(false)  // true while entry inertia is still live
+  const entryGuardTimer = useRef(null)
+  const prevStickyRef   = useRef(false)
 
   useEffect(() => {
     const el = wrapperRef.current
@@ -312,25 +308,7 @@ export default function ChallengeScene() {
       setSceneIdx(idx)
     }
 
-    // Called when GESTURE_END_MS elapses with no wheel events
-    const onGestureEnd = () => {
-      if (phaseRef.current === 'entering' || phaseRef.current === 'locked') {
-        phaseRef.current = 'ready'
-      }
-      accumRef.current = 0
-      prevSignRef.current = 0
-    }
-
-    // Reset the gesture-end countdown (called on every wheel event inside sticky zone)
-    const scheduleGestureEnd = () => {
-      clearTimeout(gestureTimerRef.current)
-      gestureTimerRef.current = setTimeout(onGestureEnd, GESTURE_END_MS)
-    }
-
-    // ── onScroll ──────────────────────────────────────────────────────────────
-    // Primary control for mobile (no wheel events on touch).
-    // On desktop, only updates when wheel control is not active (phase = 'outside').
-    // Also manages body class for header dimming.
+    // ── onScroll: mobile step control + header class ──────────────────────────
     const onScroll = () => {
       const rect = el.getBoundingClientRect()
       const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
@@ -341,123 +319,97 @@ export default function ChallengeScene() {
         document.body.classList.remove('challenge-scene-active')
       }
 
-      if (phaseRef.current !== 'outside') return
-
-      const totalScrollable = el.offsetHeight - window.innerHeight
-      const scrolled = Math.max(0, -rect.top)
-      const progress = Math.min(1, scrolled / totalScrollable)
-      const idx = Math.min(SCENES_COUNT - 1, Math.floor(progress * SCENES_COUNT))
-      if (idx !== sceneIdxRef.current) applyScene(idx)
+      // On mobile (no wheel events), drive steps from scroll position
+      if (!lockedRef.current && !isEntryGuardRef.current) {
+        const totalScrollable = el.offsetHeight - window.innerHeight
+        const scrolled = Math.max(0, -rect.top)
+        const progress = Math.min(1, scrolled / totalScrollable)
+        const idx = Math.min(SCENES_COUNT - 1, Math.floor(progress * SCENES_COUNT))
+        if (idx !== sceneIdxRef.current) applyScene(idx)
+      }
     }
 
-    // ── onWheel (state machine) ───────────────────────────────────────────────
+    // ── onWheel: desktop step control ────────────────────────────────────────
     const onWheel = (e) => {
       const rect = el.getBoundingClientRect()
       const inSticky = rect.top <= 0 && rect.bottom >= window.innerHeight
 
-      const wasSticky = prevStickyRef.current
+      // ── Detect first entry into sticky zone ──────────────────────────────
+      if (!prevStickyRef.current && inSticky) {
+        isEntryGuardRef.current = true
+        accumRef.current = 0
+        applyScene(0)
+      }
       prevStickyRef.current = inSticky
 
-      // ── Detect sticky zone entry ──────────────────────────────────────────
-      if (!wasSticky && inSticky) {
-        const totalScrollable = el.offsetHeight - window.innerHeight
-        const wrapAbsTop = rect.top + window.scrollY
-        // deltaY < 0 = scrolling UP = entering from below the section
-        const fromBelow = e.deltaY < 0
-
-        if (fromBelow) {
-          // Re-entering from below (after exiting at STEP05 bottom).
-          // Snap to near-exit position so upward navigation works immediately.
-          window.scrollTo({ top: wrapAbsTop + totalScrollable - 5, behavior: 'instant' })
-          applyScene(SCENES_COUNT - 1)
-        } else {
-          // Entering from above — snap to STEP01 position.
-          window.scrollTo({ top: wrapAbsTop + 2, behavior: 'instant' })
-          applyScene(0)
-        }
-
-        phaseRef.current = 'entering'
-        accumRef.current = 0
-        prevSignRef.current = 0
-        scheduleGestureEnd()
-      }
-
-      // ── Outside sticky zone: reset state and yield control ────────────────
       if (!inSticky) {
-        clearTimeout(gestureTimerRef.current)
-        phaseRef.current = 'outside'
         accumRef.current = 0
-        prevSignRef.current = 0
+        isEntryGuardRef.current = false
+        clearTimeout(entryGuardTimer.current)
         return
       }
 
-      // ── Inside sticky zone ────────────────────────────────────────────────
-      const phase = phaseRef.current
-      const step  = sceneIdxRef.current
-      const sign  = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0
-
-      // ── Boundary: release control so the page can scroll out ─────────────
-      // STEP01 + up → let page scroll up (sticky releases naturally)
-      if (step === 0 && sign < 0) {
-        accumRef.current = 0
-        prevSignRef.current = 0
-        return  // no preventDefault → page scrolls
-      }
-      // STEP05 + down, only when 'ready' → force-jump past sticky zone end
-      // (without this, user needs to scroll ~90vh to exit — feels stuck)
-      if (step === SCENES_COUNT - 1 && sign > 0 && phase === 'ready') {
-        e.preventDefault()
-        const totalScrollable = el.offsetHeight - window.innerHeight
-        const wrapAbsTop = rect.top + window.scrollY
-        window.scrollTo({ top: wrapAbsTop + totalScrollable + 10, behavior: 'smooth' })
-        phaseRef.current = 'outside'
-        accumRef.current = 0
-        prevSignRef.current = 0
-        return
+      // ── Entry guard: debounce — resets on every wheel event ──────────────
+      // After ENTRY_GUARD_MS of silence, guard lifts and normal operation resumes
+      if (isEntryGuardRef.current) {
+        clearTimeout(entryGuardTimer.current)
+        entryGuardTimer.current = setTimeout(() => {
+          isEntryGuardRef.current = false
+          accumRef.current = 0
+        }, ENTRY_GUARD_MS)
       }
 
-      // ── Claim this wheel event: prevent page from scrolling ───────────────
+      const current = sceneIdxRef.current
+
+      // ── Boundary: natural exit ────────────────────────────────────────────
+      // STEP01 + up → always allow (page scrolls up, sticky releases)
+      if (current === 0 && e.deltaY < 0) return
+
+      // STEP05 + down → allow exit only when lock has expired
+      // (during lock, same-gesture inertia would skip to next section)
+      if (current === SCENES_COUNT - 1 && e.deltaY > 0) {
+        if (lockedRef.current) {
+          e.preventDefault()  // hold until lock expires
+          return
+        }
+        return  // lock gone → natural page scroll exits the section
+      }
+
+      // ── Prevent page scroll while controlling steps ───────────────────────
       e.preventDefault()
 
-      // ── Direction change: reset accumulator ──────────────────────────────
-      if (sign !== 0 && prevSignRef.current !== 0 && sign !== prevSignRef.current) {
-        accumRef.current = 0
-      }
-      if (sign !== 0) prevSignRef.current = sign
+      // ── Entry guard active: absorb wheel, no step change ─────────────────
+      if (isEntryGuardRef.current) return
 
-      // ── Keep gesture timer alive ──────────────────────────────────────────
-      scheduleGestureEnd()
+      // ── Locked: no step change ────────────────────────────────────────────
+      if (lockedRef.current) return
 
-      // ── entering / locked: absorb events, no step change ─────────────────
-      if (phase === 'entering' || phase === 'locked') return
-
-      // ── ready: accumulate and check for step change ───────────────────────
-      if (phase !== 'ready') return
-
+      // ── Accumulate deltaY and check threshold ─────────────────────────────
       accumRef.current += e.deltaY
-      if (Math.abs(accumRef.current) < STEP_THRESHOLD) return
+      if (Math.abs(accumRef.current) < WHEEL_THRESHOLD) return
 
-      const stepDir  = accumRef.current > 0 ? 1 : -1
-      const nextStep = Math.max(0, Math.min(SCENES_COUNT - 1, step + stepDir))
-
-      if (nextStep === step) {
-        // Already at boundary in this direction (e.g. STEP05 going down while locked).
-        // Keep preventing scroll; gesture must end before the boundary exit above fires.
-        return
-      }
-
-      // ── Advance step ──────────────────────────────────────────────────────
+      const dir  = accumRef.current > 0 ? 1 : -1
+      const next = Math.max(0, Math.min(SCENES_COUNT - 1, current + dir))
       accumRef.current = 0
-      prevSignRef.current = 0
-      applyScene(nextStep)
-      phaseRef.current = 'locked'
+      if (next === current) return
 
-      // Sync scroll position to this step's canonical position within the 550vh zone.
-      // Ensures that after step change, the next gesture starts from the right offset.
+      applyScene(next)
+
+      // Sync scroll position to canonical step location.
+      // STEP05 snaps near the zone end so one natural scroll exits after lock.
       const totalScrollable = el.offsetHeight - window.innerHeight
-      const wrapAbsTop = rect.top + window.scrollY
-      const targetY = wrapAbsTop + nextStep * (totalScrollable / SCENES_COUNT) + 2
-      window.scrollTo({ top: targetY, behavior: 'instant' })
+      const wrapAbsTop      = rect.top + window.scrollY
+      const targetY = (next === SCENES_COUNT - 1)
+        ? wrapAbsTop + totalScrollable - 2   // near exit — trivial to leave after lock
+        : wrapAbsTop + next * (totalScrollable / SCENES_COUNT) + 2
+      window.scrollTo({ top: targetY, behavior: 'smooth' })
+
+      lockedRef.current = true
+      clearTimeout(lockTimerRef.current)
+      lockTimerRef.current = setTimeout(() => {
+        lockedRef.current = false
+        accumRef.current = 0
+      }, LOCK_DURATION)
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -467,7 +419,8 @@ export default function ChallengeScene() {
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('wheel', onWheel)
-      clearTimeout(gestureTimerRef.current)
+      clearTimeout(lockTimerRef.current)
+      clearTimeout(entryGuardTimer.current)
       document.body.classList.remove('challenge-scene-active')
     }
   }, [])
