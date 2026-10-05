@@ -360,16 +360,25 @@ export default function ChallengeScene() {
 
       // ── Detect sticky zone entry ──────────────────────────────────────────
       if (!wasSticky && inSticky) {
-        // Snap scroll to the exact beginning of the sticky zone (step 0 position).
-        // This corrects any overshoot from a fast flick, and keeps the scroll position
-        // in sync with what we're about to display (step 0).
+        const totalScrollable = el.offsetHeight - window.innerHeight
         const wrapAbsTop = rect.top + window.scrollY
-        window.scrollTo({ top: wrapAbsTop + 2, behavior: 'instant' })
+        // deltaY < 0 = scrolling UP = entering from below the section
+        const fromBelow = e.deltaY < 0
+
+        if (fromBelow) {
+          // Re-entering from below (after exiting at STEP05 bottom).
+          // Snap to near-exit position so upward navigation works immediately.
+          window.scrollTo({ top: wrapAbsTop + totalScrollable - 5, behavior: 'instant' })
+          applyScene(SCENES_COUNT - 1)
+        } else {
+          // Entering from above — snap to STEP01 position.
+          window.scrollTo({ top: wrapAbsTop + 2, behavior: 'instant' })
+          applyScene(0)
+        }
 
         phaseRef.current = 'entering'
         accumRef.current = 0
         prevSignRef.current = 0
-        applyScene(0)
         scheduleGestureEnd()
       }
 
